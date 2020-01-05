@@ -1,0 +1,516 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"Wind",
+				"WindowAttribs"
+			],
+			[
+				"window",
+				"window"
+			],
+			[
+				"stru",
+				"struct_\tstruct"
+			],
+			[
+				"E",
+				"Event"
+			],
+			[
+				"inc",
+				"inc\t#include \"…\""
+			],
+			[
+				"Key",
+				"KeySym_"
+			],
+			[
+				"K",
+				"KeySym_"
+			],
+			[
+				"Sc",
+				"Screen_"
+			],
+			[
+				"Dis",
+				"Display_"
+			],
+			[
+				"Fin",
+				"FinalClock"
+			],
+			[
+				"tim",
+				"time"
+			],
+			[
+				"Tem",
+				"TempStr"
+			],
+			[
+				"Ke",
+				"KeyString"
+			],
+			[
+				"Te",
+				"TempStr"
+			],
+			[
+				"R",
+				"RStrip"
+			],
+			[
+				"k",
+				"KeyString"
+			],
+			[
+				"player",
+				"PlayerSecond"
+			],
+			[
+				"Ply",
+				"PlayerFirst"
+			],
+			[
+				"ply",
+				"player1"
+			],
+			[
+				"Pl",
+				"PlayerFirst"
+			],
+			[
+				"print",
+				"print"
+			],
+			[
+				"Player",
+				"PlayerSecond"
+			],
+			[
+				"prin",
+				"print"
+			],
+			[
+				"pl",
+				"player1"
+			],
+			[
+				"pri",
+				"print"
+			],
+			[
+				"p",
+				"player1"
+			],
+			[
+				"get",
+				"get_player_inputs"
+			],
+			[
+				"File",
+				"FileX"
+			],
+			[
+				"PokemonUl",
+				"PokemonUltraMoon"
+			],
+			[
+				"PokemonUlt",
+				"PokemonUltraSun"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "src/linux_main.cpp",
+			"settings":
+			{
+				"buffer_size": 2987,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "Ennov.sublime-project",
+			"settings":
+			{
+				"buffer_size": 930,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "Ennov (Linux)",
+	"build_system_choices":
+	[
+		[
+			[
+				[
+					"Ennov (Linux)",
+					""
+				],
+				[
+					"Ennov (Linux)",
+					"clean"
+				],
+				[
+					"Ennov (Linux)",
+					"rebuild_cache"
+				],
+				[
+					"Ennov (Linux)",
+					"hello"
+				]
+			],
+			[
+				"Ennov (Linux)",
+				""
+			]
+		],
+		[
+			[
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					""
+				],
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					"Run"
+				],
+				[
+					"Packages/User/UnityBuildC++.sublime-build",
+					""
+				]
+			],
+			[
+				"Packages/User/UnityBuildC++.sublime-build",
+				""
+			]
+		]
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"instl",
+				"Package Control: Install Package"
+			],
+			[
+				"ins",
+				"Package Control: Install Package"
+			],
+			[
+				"build",
+				"Build With: Ennov (Linux) - clean"
+			],
+			[
+				"inst",
+				"Package Control: Install Package"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"ter",
+				"Terminus: Toggle Panel"
+			],
+			[
+				"term",
+				"Terminus: Toggle Panel"
+			],
+			[
+				"toggle",
+				"Terminus: Toggle Panel"
+			],
+			[
+				"terminus",
+				"Terminus: Toggle Panel"
+			],
+			[
+				"insta",
+				"Package Control: Install Package"
+			],
+			[
+				"ena",
+				"Package Control: Enable Package"
+			],
+			[
+				"dis",
+				"Package Control: Disable Package"
+			],
+			[
+				"pakc",
+				"Install Package Control"
+			]
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/home/rajat/Desktop/Ennov",
+		"/home/rajat/Desktop/Ennov/src"
+	],
+	"file_history":
+	[
+		"/home/rajat/Desktop/Ennov/CMakeLists.txt",
+		"/home/rajat/Desktop/Ennov/src/linux_main.cpp",
+		"/home/rajat/Desktop/Ennov/src/CMakeLists.txt",
+		"/home/rajat/Desktop/projvvm/src/linux_main.cpp",
+		"/home/rajat/Desktop/projvvm/build.sh",
+		"/home/rajat/Desktop/projvvm/src/vvm.cpp",
+		"/home/rajat/Desktop/xlib-tutorial/prog-2.cc",
+		"/home/rajat/Desktop/xlib-tutorial/prog-1.cc",
+		"/home/rajat/Desktop/handmade_hero-master/code/handmade.cpp",
+		"/home/rajat/Desktop/projvvm/CMakeLists.txt",
+		"/home/rajat/.emacs",
+		"/home/rajat/Desktop/handmade_hero-master/code/win32_handmade.cpp",
+		"/home/rajat/.config/sublime-text-3/Packages/User/UnityBuildC++.sublime-build",
+		"/home/rajat/Desktop/projvvm/src/main.cpp",
+		"/usr/include/time.h",
+		"/usr/include/threads.h",
+		"/home/rajat/Desktop/projvvm/build/settings.rajat",
+		"/usr/include/c++/8/fstream",
+		"/usr/include/c++/8/istream",
+		"/home/rajat/Desktop/hello.py",
+		"/home/rajat/Desktop/MyDairy/src/index.html",
+		"/home/rajat/Desktop/WebPage/index.html",
+		"/home/rajat/Desktop/MyDiary-master/index.html",
+		"/home/rajat/Desktop/sample/web/index.html",
+		"/home/rajat/Desktop/mav",
+		"/home/rajat/Desktop/hello/CMakeLists.txt",
+		"/home/rajat/Desktop/hello/src/main.cpp",
+		"/home/rajat/Desktop/my_app/.packages",
+		"/home/rajat/Desktop/my_app/android/build.gradle",
+		"/home/rajat/Desktop/my_app/android/app/build.gradle",
+		"/home/rajat/development/tools/bin/sdkmanager",
+		"/home/rajat/Desktop/MyProject/main.cpp",
+		"/home/rajat/Desktop/MyProject/src/backend.cpp",
+		"/home/rajat/Desktop/MyProject/CMakeLists.txt",
+		"/home/rajat/Desktop/skdljfsf.html",
+		"/home/rajat/Desktop/ProjectAVX/main.cc",
+		"/home/rajat/Desktop/ProjectAVX/avx.h",
+		"/home/rajat/Desktop/ProjectAVX/avx.cc",
+		"/home/rajat/Desktop/gltut-master/CopyWebsite.lua",
+		"/home/rajat/Desktop/gltut-master/premake4.lua",
+		"/home/rajat/Desktop/gltut-master/data/Unlit.frag",
+		"/home/rajat/Desktop/todo.txt",
+		"/home/rajat/Documents/Backup-codes-rajat.vx.txt"
+	],
+	"find":
+	{
+		"height": 39.0
+	},
+	"find_in_files":
+	{
+		"height": 101.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": true,
+		"find_history":
+		[
+			"str",
+			"keysym",
+			"len",
+			"Disp"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+			"Disp"
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 1,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "src/linux_main.cpp",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 2987,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								231,
+								231
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "Ennov.sublime-project",
+					"semi_transient": true,
+					"settings":
+					{
+						"buffer_size": 930,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/JavaScript/JSON.sublime-syntax",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 764.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 26.0
+	},
+	"input":
+	{
+		"height": 38.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 120.0
+	},
+	"output.files_to_be_deleted":
+	{
+		"height": 120.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "Ennov (Linux)",
+	"project": "Ennov.sublime-project",
+	"replace":
+	{
+		"height": 70.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 236.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
