@@ -3,4 +3,5 @@ project(Ennov VERSION 0.1.0 LANGUAGES C CXX)
 
 add_executable(Ennov src/linux_main.cpp)
 
-target_link_libraries(Ennov PUBLIC X11)
+target_link_libraries(Ennov PUBLIC X11 GL GLX)
+target_include_directories(Ennov PUBLIC src/)
