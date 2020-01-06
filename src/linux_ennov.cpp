@@ -3,8 +3,14 @@
 #include <X11/keysymdef.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include "glad/glad.c"
 
 #include <GL/glx.h>
+#include <dlfcn.h>
+#include <fcntl.h>
 
 #define global_variable static
 #define local_persist static
@@ -58,20 +64,27 @@ int main(int argc, char* argv[])
 
 
 	int ContextAttribs[] = {
-		GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
+		GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
 		GLX_CONTEXT_MINOR_VERSION_ARB, 2,
 		GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
 		None
 	};
 
 	GLXContext Context = 0;
-	Context = glXCreateContextAttribsARB(Display_, FbC[0], 0, true, ContextAttribs);
+	Context = glXCreateContextAttribsARB(Display_, FbC[0], 0, True, ContextAttribs);
+    glXMakeCurrent(Display_, Window_, Context);
+
+    // Note(Rajat): Always load OpenGL after creating a context and making it current
+
+    gladLoadGL();
 
 	XSync(Display_, False);
 
-	glXMakeCurrent(Display_, Window_, Context);
 
     XStoreName(Display_, Window_, "Hello X11!");
+
+    Atom AtomWmDeleteWindow = XInternAtom(Display_, "WM_DELETE_WINDOW", False);
+    XSetWMProtocols(Display_, Window_, &AtomWmDeleteWindow, 1);
 
     XClearWindow(Display_, Window_);
     XMapRaised(Display_, Window_);
@@ -81,7 +94,7 @@ int main(int argc, char* argv[])
 
     uint KeyboardEventMasks = KeyPressMask | KeyReleaseMask | KeymapStateMask;
     uint MouseEventMasks = PointerMotionMask | ButtonPressMask | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask;
-    uint EventMasks = KeyboardEventMasks | MouseEventMasks | ExposureMask;
+    uint EventMasks = KeyboardEventMasks | MouseEventMasks | ExposureMask | StructureNotifyMask;
 
     XSelectInput(Display_, Window_, EventMasks);
 
@@ -89,25 +102,51 @@ int main(int argc, char* argv[])
     KeySym KeySym_ = 0;
     int Len = 0;
 
+    void* GameLibrary = NULL;
+    void(*Foo)(void);
+
     while(Running)
     {
     	XNextEvent(Display_, &Event);
     	switch(Event.type)
     	{
+            case MapNotify:
+                printf("Using OpenGL : %s\n", glGetString(GL_VERSION));
+                break;
     		case Expose:
     			local_persist XWindowAttributes WindowAttribs;
     			XGetWindowAttributes(Display_, Window_, &WindowAttribs);
-    			printf("Window resized: (%i, %i)\n", WindowAttribs.width, WindowAttribs.height);
+                glViewport(0, 0, WindowAttribs.width, WindowAttribs.height);
     			break;
     		case KeymapNotify:
     			XRefreshKeyboardMapping(&Event.xmapping);
     			break;
+            case ClientMessage:
+                if(Event.xclient.data.l[0] == AtomWmDeleteWindow)
+                    Running = false;
+                break;
+            case DestroyNotify:
+                Running = false;
     		case KeyPress:
     			Len = XLookupString(&Event.xkey, Str, 25, &KeySym_, NULL);
     			if(Len > 0)
     				printf("Key Pressed: %s : %i\n", Str, Len);
     			if(KeySym_ == XK_Escape)
     				Running = false;
+                if(KeySym_ == XK_Tab)
+                {
+                    GameLibrary = dlopen("./libEnnov.so", RTLD_LAZY);
+                    if(!GameLibrary) {
+                        fprintf(stderr, "%s\n", dlerror());
+                        exit(EXIT_FAILURE);
+                    }
+                    Foo = (void(*)(void))dlsym(GameLibrary, "Foo");
+                    if(!Foo) {
+                        fprintf(stderr, "%s\n", dlerror());
+                    }
+                    Foo();
+                    dlclose(GameLibrary);
+                }
     			break;
     		case KeyRelease:
     		    Len = XLookupString(&Event.xkey, Str, 25, &KeySym_, NULL);
@@ -140,9 +179,14 @@ int main(int argc, char* argv[])
             	break;
     	}
 
+        glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
     	glXSwapBuffers(Display_, Window_);
     }
 
+    // Note(Rajat): Don't forget to free resources after use
+    glXDestroyContext(Display_, Context);
     XDestroyWindow(Display_, Window_);
     XCloseDisplay(Display_);
 

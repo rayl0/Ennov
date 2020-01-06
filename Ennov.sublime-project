@@ -17,8 +17,24 @@
 					"shell_cmd": "make -j2 rebuild_cache"
 				},
 				{
+					"name": "EnnovSandbox",
+					"shell_cmd": "make -j2 EnnovSandbox"
+				},
+				{
 					"name": "Ennov",
 					"shell_cmd": "make -j2 Ennov"
+				},
+				{
+					"name": "src/ennov.o",
+					"shell_cmd": "make -j2 src/ennov.o"
+				},
+				{
+					"name": "src/ennov.i",
+					"shell_cmd": "make -j2 src/ennov.i"
+				},
+				{
+					"name": "src/ennov.s",
+					"shell_cmd": "make -j2 src/ennov.s"
 				},
 				{
 					"name": "src/linux_main.o",
