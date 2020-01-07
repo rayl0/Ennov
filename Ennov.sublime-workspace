@@ -4,6 +4,158 @@
 		"selected_items":
 		[
 			[
+				"Game",
+				"GameInput"
+			],
+			[
+				"Ga",
+				"GameInput"
+			],
+			[
+				"game",
+				"game_input_controller"
+			],
+			[
+				"inc",
+				"inc\t#include \"…\""
+			],
+			[
+				"Vis",
+				"Visual"
+			],
+			[
+				"Bes",
+				"BestFb"
+			],
+			[
+				"Best",
+				"BestFbC"
+			],
+			[
+				"Wor",
+				"WorstNumSamples"
+			],
+			[
+				"Worst",
+				"WorstFbC"
+			],
+			[
+				"Be",
+				"BestFbC"
+			],
+			[
+				"Sam",
+				"SampBuf"
+			],
+			[
+				"Visu",
+				"VisualInfo"
+			],
+			[
+				"Ver",
+				"Verticies"
+			],
+			[
+				"glBind",
+				"glBindVertexArray"
+			],
+			[
+				"Fra",
+				"FragmentShader"
+			],
+			[
+				"Fr",
+				"FragmentShader"
+			],
+			[
+				"V",
+				"VertexShader"
+			],
+			[
+				"IN",
+				"IndexBuffer"
+			],
+			[
+				"Ind",
+				"IndexBuffer"
+			],
+			[
+				"Ve",
+				"VertexBuffer"
+			],
+			[
+				"Vert",
+				"VertexArray"
+			],
+			[
+				"uin",
+				"uint32"
+			],
+			[
+				"Atom",
+				"AtomWmDeleteWindow"
+			],
+			[
+				"At",
+				"AtomWmDeleteWindow"
+			],
+			[
+				"Wi",
+				"WindowAttribs"
+			],
+			[
+				"Sc",
+				"ScreenVisualInfo"
+			],
+			[
+				"Win",
+				"Window_"
+			],
+			[
+				"B",
+				"BackBuffer"
+			],
+			[
+				"wi",
+				"width"
+			],
+			[
+				"Cont",
+				"context"
+			],
+			[
+				"dis",
+				"Display_"
+			],
+			[
+				"di",
+				"Display_"
+			],
+			[
+				"WindowA",
+				"WindowAttribs"
+			],
+			[
+				"Exp",
+				"ExposureMask"
+			],
+			[
+				"Sre",
+				"ScreenNumber"
+			],
+			[
+				"Window",
+				"WindowAttribs"
+			],
+			[
+				"Scr",
+				"ScreenNumber"
+			],
+			[
+				"in",
+				"inc\t#include <…>"
+			],
+			[
 				"Wind",
 				"WindowAttribs"
 			],
@@ -20,20 +172,12 @@
 				"Event"
 			],
 			[
-				"inc",
-				"inc\t#include \"…\""
-			],
-			[
 				"Key",
 				"KeySym_"
 			],
 			[
 				"K",
 				"KeySym_"
-			],
-			[
-				"Sc",
-				"Screen_"
 			],
 			[
 				"Dis",
@@ -128,19 +272,37 @@
 	"buffers":
 	[
 		{
-			"file": "src/linux_main.cpp",
+			"file": "src/linux_ennov.cpp",
 			"settings":
 			{
-				"buffer_size": 2987,
+				"buffer_size": 9829,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
 		},
 		{
-			"file": "Ennov.sublime-project",
+			"file": "src/ennov_platform.h",
 			"settings":
 			{
-				"buffer_size": 930,
+				"buffer_size": 1465,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "src/ennov.h",
+			"settings":
+			{
+				"buffer_size": 1,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "src/ennov_gl.cpp",
+			"settings":
+			{
+				"buffer_size": 26,
 				"line_ending": "Unix"
 			}
 		}
@@ -201,16 +363,52 @@
 		"selected_items":
 		[
 			[
+				"head",
+				"Snippet: HeaderDecl"
+			],
+			[
+				"snippet",
+				"Snippet: ifndef (…)"
+			],
+			[
+				"#ifn",
+				"Snippet: #ifndef … #define … #endif"
+			],
+			[
+				"header",
+				"Snippet: HeaderDecl"
+			],
+			[
+				"my",
+				"Snippet: my_snippet"
+			],
+			[
+				"to",
+				"Terminus: Toggle Panel"
+			],
+			[
+				"build",
+				"Build With: Ennov (Linux)"
+			],
+			[
+				"clena",
+				"Build With: Ennov (Linux) - clean"
+			],
+			[
+				"run",
+				"Build With: Ennov (Linux) - run"
+			],
+			[
+				"term",
+				"Terminus: Toggle Panel"
+			],
+			[
 				"instl",
 				"Package Control: Install Package"
 			],
 			[
 				"ins",
 				"Package Control: Install Package"
-			],
-			[
-				"build",
-				"Build With: Ennov (Linux) - clean"
 			],
 			[
 				"inst",
@@ -222,10 +420,6 @@
 			],
 			[
 				"ter",
-				"Terminus: Toggle Panel"
-			],
-			[
-				"term",
 				"Terminus: Toggle Panel"
 			],
 			[
@@ -274,22 +468,42 @@
 	"expanded_folders":
 	[
 		"/home/rajat/Desktop/Ennov",
+		"/home/rajat/Desktop/Ennov/build",
 		"/home/rajat/Desktop/Ennov/src"
 	],
 	"file_history":
 	[
+		"/home/rajat/Desktop/Ennov/src/ennov.cpp",
+		"/home/rajat/Desktop/Ennov/src/ennov_platform.h",
+		"/home/rajat/Desktop/crown-master/src/device/main_linux.cpp",
+		"/home/rajat/Desktop/crown-master/src/device/input_device.cpp",
+		"/usr/include/X11/Xlib.h",
+		"/home/rajat/Desktop/handmade_hero-master/code/win32_handmade.cpp",
+		"/home/rajat/Desktop/handmade_hero-master/code/handmade_entity.cpp",
+		"/home/rajat/.config/sublime-text-3/Packages/User/HeaderDecl.sublime-snippet",
+		"/home/rajat/.config/sublime-text-3/Packages/User/my_snippet.sublime-snippet",
+		"/home/rajat/Desktop/handmade_hero-master/code/handmade_world.cpp",
+		"/home/rajat/Desktop/handmade_hero-master/code/handmade_render_group.cpp",
+		"/home/rajat/Desktop/Ennov/src/linux_ennov.cpp",
+		"/home/rajat/Desktop/Ennov/src/ennov.h",
+		"/home/rajat/Desktop/Ennov/src/ennov_gl.cpp",
 		"/home/rajat/Desktop/Ennov/CMakeLists.txt",
+		"/home/rajat/Desktop/Ennov/src/glad/glad.h",
 		"/home/rajat/Desktop/Ennov/src/linux_main.cpp",
+		"/home/rajat/Desktop/void.c",
+		"/home/rajat/Desktop/crown-master/src/device/main_android.cpp",
+		"/home/rajat/Desktop/Ennov/src/dllloader.cpp",
+		"/home/rajat/Desktop/Ennov/Ennov.sublime-project",
+		"/home/rajat/Desktop/xlib-tutorial/prog-2.cc",
+		"/home/rajat/Desktop/handmade_hero-master/code/handmade.cpp",
+		"/home/rajat/Desktop/handmade_hero-master/code/handmade.h",
 		"/home/rajat/Desktop/Ennov/src/CMakeLists.txt",
 		"/home/rajat/Desktop/projvvm/src/linux_main.cpp",
 		"/home/rajat/Desktop/projvvm/build.sh",
 		"/home/rajat/Desktop/projvvm/src/vvm.cpp",
-		"/home/rajat/Desktop/xlib-tutorial/prog-2.cc",
 		"/home/rajat/Desktop/xlib-tutorial/prog-1.cc",
-		"/home/rajat/Desktop/handmade_hero-master/code/handmade.cpp",
 		"/home/rajat/Desktop/projvvm/CMakeLists.txt",
 		"/home/rajat/.emacs",
-		"/home/rajat/Desktop/handmade_hero-master/code/win32_handmade.cpp",
 		"/home/rajat/.config/sublime-text-3/Packages/User/UnityBuildC++.sublime-build",
 		"/home/rajat/Desktop/projvvm/src/main.cpp",
 		"/usr/include/time.h",
@@ -324,7 +538,7 @@
 	],
 	"find":
 	{
-		"height": 39.0
+		"height": 47.0
 	},
 	"find_in_files":
 	{
@@ -338,6 +552,11 @@
 		"case_sensitive": true,
 		"find_history":
 		[
+			"XLookupString",
+			"XLookupKeySym",
+			"sample_buf",
+			"samples",
+			"local_presist",
 			"str",
 			"keysym",
 			"len",
@@ -360,44 +579,75 @@
 	"groups":
 	[
 		{
-			"selected": 1,
+			"selected": 0,
 			"sheets":
 			[
 				{
 					"buffer": 0,
-					"file": "src/linux_main.cpp",
+					"file": "src/linux_ennov.cpp",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 2987,
+						"buffer_size": 9829,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								231,
-								231
+								7481,
+								7481
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/C++/C++.sublime-syntax"
+							"syntax": "Packages/C++/C++.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 4366.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "src/ennov_platform.h",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 1465,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								849,
+								849
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.sublime-syntax",
+							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 1,
+					"stack_index": 3,
 					"type": "text"
 				},
 				{
-					"buffer": 1,
-					"file": "Ennov.sublime-project",
-					"semi_transient": true,
+					"buffer": 2,
+					"file": "src/ennov.h",
+					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 930,
+						"buffer_size": 1,
 						"regions":
 						{
 						},
@@ -410,14 +660,41 @@
 						],
 						"settings":
 						{
-							"syntax": "Packages/JavaScript/JSON.sublime-syntax",
-							"translate_tabs_to_spaces": false
+							"syntax": "Packages/C++/C++.sublime-syntax"
 						},
 						"translation.x": 0.0,
-						"translation.y": 764.0,
+						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 2,
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "src/ennov_gl.cpp",
+					"semi_transient": true,
+					"settings":
+					{
+						"buffer_size": 26,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
 					"type": "text"
 				}
 			]
@@ -454,9 +731,13 @@
 		]
 	},
 	"menu_visible": true,
+	"output.Terminus":
+	{
+		"height": 207.0
+	},
 	"output.exec":
 	{
-		"height": 120.0
+		"height": 152.0
 	},
 	"output.files_to_be_deleted":
 	{
@@ -508,7 +789,7 @@
 	"show_open_files": false,
 	"show_tabs": true,
 	"side_bar_visible": true,
-	"side_bar_width": 236.0,
+	"side_bar_width": 254.0,
 	"status_bar_visible": true,
 	"template_settings":
 	{

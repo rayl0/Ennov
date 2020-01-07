@@ -1,9 +1,15 @@
 #include <stdio.h>
+#include "ennov.h"
+#include "ennov_platform.h"
 
-extern "C" void Foo(void)
+void GameUpdateAndRender(game_input* Input)
 {
-	printf("Hello form the dll is the best hello ever\n");
-	printf("Hello form the dll after reloading\n");
+	if(Input->Controller.MoveUp.EndedDown)
+		fprintf(stderr, "%s\n", "Hello from the game");
 
-	printf("Get the hell out of here\n");
+	if(Input->Controller.MoveDown.EndedDown)
+		fprintf(stderr, "%s\n", "Hello down from the game");
+
+	if(Input->Controller.Terminate.EndedDown)
+		fprintf(stderr, "%s\n", "Hello Game is ended now");
 }

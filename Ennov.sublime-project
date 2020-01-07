@@ -37,16 +37,16 @@
 					"shell_cmd": "make -j2 src/ennov.s"
 				},
 				{
-					"name": "src/linux_main.o",
-					"shell_cmd": "make -j2 src/linux_main.o"
+					"name": "src/linux_ennov.o",
+					"shell_cmd": "make -j2 src/linux_ennov.o"
 				},
 				{
-					"name": "src/linux_main.i",
-					"shell_cmd": "make -j2 src/linux_main.i"
+					"name": "src/linux_ennov.i",
+					"shell_cmd": "make -j2 src/linux_ennov.i"
 				},
 				{
-					"name": "src/linux_main.s",
-					"shell_cmd": "make -j2 src/linux_main.s"
+					"name": "src/linux_ennov.s",
+					"shell_cmd": "make -j2 src/linux_ennov.s"
 				}
 			],
 			"working_dir": "${project_path}/build"
