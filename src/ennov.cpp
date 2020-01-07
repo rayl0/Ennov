@@ -4,12 +4,14 @@
 
 void GameUpdateAndRender(game_input* Input)
 {
-	if(Input->Controller.MoveUp.EndedDown)
-		fprintf(stderr, "%s\n", "Hello from the game");
-
-	if(Input->Controller.MoveDown.EndedDown)
-		fprintf(stderr, "%s\n", "Hello down from the game");
-
-	if(Input->Controller.Terminate.EndedDown)
-		fprintf(stderr, "%s\n", "Hello Game is ended now");
+	if(Input->Button.S.EndedDown) {
+		printf("%s\n", "Hello World!");
+		printf("%s:%i\n", "Repeat Count!", Input->Button.S.Repeat);
+	}
+	if(Input->Button.A.EndedDown) {
+		printf("%s\n", "A button pressed");
+	}
+	if(Input->Button.Start.EndedDown) {
+		printf("%s\n", "The Game has started everybody");
+	}
 }

@@ -26,18 +26,22 @@ typedef uint64_t uint64;
 typedef float real32;
 typedef double real64;
 
+// TODO(Rajat): Might want to replace it in future
+
 typedef struct game_button_state
 {
-	int HalfTransitionCount;
+	int32 Repeat;
 	bool32 EndedDown;
 }game_button_state;
 
-typedef struct game_input_controller
+typedef struct game_input
 {
 	union {
-		game_button_state Buttons[11];
+		game_button_state Buttons[10];
 
-		struct {
+		// TODO(Rajat): Update them for the Standard gaming
+		struct 
+		{
 			game_button_state MoveUp;
 			game_button_state MoveDown;
 			game_button_state MoveLeft;
@@ -46,33 +50,12 @@ typedef struct game_input_controller
 			game_button_state Start;
 			game_button_state Select;
 
-			game_button_state ActionUp;
-			game_button_state ActionDown;
-			game_button_state ActionLeft;
-			game_button_state ActionRight;
-
-			game_button_state Terminate;
-		};
+			game_button_state X;
+			game_button_state Y;
+			game_button_state A;
+			game_button_state S;
+		}Button;
 	};
-}game_input_controller;
-
-typedef struct game_mouse_controller
-{
-	int X, Y;
-	union {
-		game_button_state Buttons[2];
-
-		struct {
-			game_button_state MouseLeft;
-			game_button_state MouseRight;
-		};
-	};
-}game_mouse_controller;
-
-typedef struct game_input
-{
-	game_input_controller Controller;
-	game_mouse_controller Mouse;
 }game_input;
 
 void GameUpdateAndRender(game_input* Input);
