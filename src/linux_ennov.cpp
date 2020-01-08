@@ -1,40 +1,42 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/Xresource.h>
 #include <X11/keysymdef.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+
+#include <sys/time.h>
+#include <pthread.h>
 #include <unistd.h>
 
-#include "ennov_platform.h"
 #include "ennov_gl.cpp"
+#include "ennov_platform.h"
 
 #include <GL/glx.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 
-
+#define MEGABYTES_TO_BTYES(i) \
+    (i * 1024 * 1024)
 
 typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
 
 // TODO(Rajat): Build a software renderer later
 
-global_variable real32 Verticies[] = 
-{
+global_variable real32 Verticies[] = {
     -0.5f, -0.5f,
-    -0.5f,  0.5f,
-     0.5f,  0.5f,
-     0.5f, -0.5f
+    -0.5f, 0.5f,
+    0.5f, 0.5f,
+    0.5f, -0.5f
 };
 
-global_variable uint32 Indicies[] =
-{
+global_variable uint32 Indicies[] = {
     0, 1, 2,
     2, 3, 0
 };
 
-global_variable char* VertexShaderSource = 
-{
+global_variable char* VertexShaderSource = {
     R"(
     #version 420 core
 
@@ -47,8 +49,7 @@ global_variable char* VertexShaderSource =
     )"
 };
 
-global_variable char* FragmentShaderSource = 
-{
+global_variable char* FragmentShaderSource = {
     R"(
     #version 420 core
     out vec4 Color;
@@ -65,8 +66,7 @@ global_variable GLuint IndexBuffer;
 global_variable GLuint ShaderProgram;
 global_variable GLuint VertexArray;
 
-struct x11_state
-{
+struct x11_state {
     Display* Display_;
     Screen* Screen_;
     int32 ScreenID;
@@ -77,41 +77,40 @@ struct x11_state
     bool32 Running;
 };
 
-GLXFBConfig X11GetFrameBufferConfig(x11_state* State)
+internal GLXFBConfig X11GetFrameBufferConfig(x11_state* State)
 {
-    GLint GlxAttributes[] =
-    {
-        GLX_X_RENDERABLE    , True,
-        GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
-        GLX_RENDER_TYPE     , GLX_RGBA_BIT,
-        GLX_X_VISUAL_TYPE   , GLX_TRUE_COLOR,
-        GLX_RED_SIZE        , 8,
-        GLX_GREEN_SIZE      , 8,
-        GLX_BLUE_SIZE       , 8,
-        GLX_ALPHA_SIZE      , 8,
-        GLX_DEPTH_SIZE      , 24,
-        GLX_STENCIL_SIZE    , 8,
-        GLX_DOUBLEBUFFER    , True,
+    GLint GlxAttributes[] = {
+        GLX_X_RENDERABLE, True,
+        GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+        GLX_RENDER_TYPE, GLX_RGBA_BIT,
+        GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+        GLX_RED_SIZE, 8,
+        GLX_GREEN_SIZE, 8,
+        GLX_BLUE_SIZE, 8,
+        GLX_ALPHA_SIZE, 8,
+        GLX_DEPTH_SIZE, 24,
+        GLX_STENCIL_SIZE, 8,
+        GLX_DOUBLEBUFFER, True,
         None
     };
 
     int FBcount;
-    GLXFBConfig* FbC = glXChooseFBConfig(State->Display_, State->ScreenID, 
-                        GlxAttributes, &FBcount);
+    GLXFBConfig* FbC = glXChooseFBConfig(State->Display_, State->ScreenID,
+        GlxAttributes, &FBcount);
 
     int BestFbC = -1, WorstFbC = -1, BestNumSamples = -1, WorstNumSamples = 999;
     for (int i = 0; i < FBcount; ++i) {
-        XVisualInfo *VisualInfo = glXGetVisualFromFBConfig( State->Display_, FbC[i] );
-        if ( VisualInfo != 0) {
+        XVisualInfo* VisualInfo = glXGetVisualFromFBConfig(State->Display_, FbC[i]);
+        if (VisualInfo != 0) {
             int SampBuf, Samples;
-            glXGetFBConfigAttrib( State->Display_, FbC[i], GLX_SAMPLE_BUFFERS, &SampBuf );
-            glXGetFBConfigAttrib( State->Display_, FbC[i], GLX_SAMPLES       , &Samples  );
+            glXGetFBConfigAttrib(State->Display_, FbC[i], GLX_SAMPLE_BUFFERS, &SampBuf);
+            glXGetFBConfigAttrib(State->Display_, FbC[i], GLX_SAMPLES, &Samples);
 
-            if ( BestFbC < 0 || (SampBuf && Samples > BestNumSamples) ) {
+            if (BestFbC < 0 || (SampBuf && Samples > BestNumSamples)) {
                 BestFbC = i;
                 BestNumSamples = Samples;
             }
-            if ( WorstFbC < 0 || !SampBuf || Samples < WorstNumSamples )
+            if (WorstFbC < 0 || !SampBuf || Samples < WorstNumSamples)
                 WorstFbC = i;
             WorstNumSamples = Samples;
         }
@@ -123,7 +122,7 @@ GLXFBConfig X11GetFrameBufferConfig(x11_state* State)
     return BestFb;
 }
 
-void X11Init(x11_state* State)
+internal void X11Init(x11_state* State)
 {
     // TODO(Rajat): Error checking and logging
     // TODO(Rajat): Separate Functionality
@@ -139,17 +138,16 @@ void X11Init(x11_state* State)
     WindowAttribs.border_pixel = BlackPixel(State->Display_, State->ScreenID);
     WindowAttribs.background_pixel = WhitePixel(State->Display_, State->ScreenID);
     WindowAttribs.override_redirect = true;
-    WindowAttribs.colormap = XCreateColormap(State->Display_, RootWindow(State->Display_, State->ScreenID), 
-                                            Visual->visual, AllocNone);
+    WindowAttribs.colormap = XCreateColormap(State->Display_, RootWindow(State->Display_, State->ScreenID),
+        Visual->visual, AllocNone);
     WindowAttribs.event_mask = ExposureMask;
 
-    State->Window_ = XCreateWindow(State->Display_, RootWindowOfScreen(State->Screen_), 
-                                   50, 50, 600, 400, 5, Visual->depth, InputOutput, Visual->visual, 
-                                   CWBackPixel | CWColormap | CWBorderPixel | CWEventMask, &WindowAttribs);
+    State->Window_ = XCreateWindow(State->Display_, RootWindowOfScreen(State->Screen_),
+        50, 50, 600, 400, 5, Visual->depth, InputOutput, Visual->visual,
+        CWBackPixel | CWColormap | CWBorderPixel | CWEventMask, &WindowAttribs);
 
     glXCreateContextAttribsARBProc glXCreateContextAttribsARB = 0;
-    glXCreateContextAttribsARB = (glXCreateContextAttribsARBProc) glXGetProcAddressARB( (const GLubyte *) "glXCreateContextAttribsARB" );
-
+    glXCreateContextAttribsARB = (glXCreateContextAttribsARBProc)glXGetProcAddressARB((const GLubyte*)"glXCreateContextAttribsARB");
 
     int ContextAttribs[] = {
         GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
@@ -163,10 +161,9 @@ void X11Init(x11_state* State)
     State->WindowColormap = WindowAttribs.colormap;
 
     // Verifying that context is a direct context
-    if (!glXIsDirect (State->Display_, State->Context)) {
+    if (!glXIsDirect(State->Display_, State->Context)) {
         fprintf(stderr, "Indirect GLX rendering context obtained\n");
-    }
-    else {
+    } else {
         fprintf(stderr, "Direct GLX rendering context obtained\n");
     }
     glXMakeCurrent(State->Display_, State->Window_, State->Context);
@@ -190,80 +187,63 @@ void X11Init(x11_state* State)
     XFree(Visual);
 }
 
-void X11ProcessEvents(x11_state* State, game_input* NewInput)
+internal void X11ProcessEvents(x11_state* State, game_input* NewInput)
 {
 
     local_persist XEvent Event;
     (*NewInput) = {};
 
-    XNextEvent(State->Display_, &Event);
-    switch(Event.type)
-    {
+    while (XPending(State->Display_) > 0) {
+        XNextEvent(State->Display_, &Event);
+        switch (Event.type) {
         case MapNotify:
             printf("Using OpenGL : %s\n", glGetString(GL_VERSION));
-        break;
+            break;
         case Expose:
             local_persist XWindowAttributes WindowAttribs;
             XGetWindowAttributes(State->Display_, State->Window_, &WindowAttribs);
             glViewport(0, 0, WindowAttribs.width, WindowAttribs.height);
-        break;
-        case KeymapNotify:
+            break;
+        case MappingNotify:
             XRefreshKeyboardMapping(&Event.xmapping);
-        break;
+            break;
+            break;
         case ClientMessage:
-            if(Event.xclient.data.l[0] == State->AtomWmDeleteWindow)
+            if (Event.xclient.data.l[0] == State->AtomWmDeleteWindow)
                 State->Running = false;
-        break;
+            break;
         case DestroyNotify:
-                State->Running = false;
+            State->Running = false;
         case KeyPress:
-        break;
-        case KeyRelease:
-        {
+            break;
+        case KeyRelease: {
             bool32 IsDown = (Event.xkey.type == KeyPress);
             KeySym Key = XLookupKeysym(&Event.xkey, 0);
 
-            if(Key == XK_s)
-            {
+            if (Key == XK_s) {
                 NewInput->Button.S.EndedDown = true;
                 ++(NewInput->Button.S.Repeat);
             }
-            if(Key == XK_a)
-            {
+            if (Key == XK_a) {
                 NewInput->Button.A.EndedDown = true;
                 ++(NewInput->Button.A.Repeat);
             }
-            if(Key == XK_Tab)
-            {
+            if (Key == XK_Tab) {
                 NewInput->Button.Start.EndedDown = true;
                 ++(NewInput->Button.Start.Repeat);
             }
-        }
-        break;
+        } break;
         case ButtonPress:
-            if(Event.xbutton.button == 1)
-                printf("Left mouse button pressed\n");
-            if(Event.xbutton.button == 3)
-                printf("Right mouse button pressed\n");
-        break;
+            break;
         case ButtonRelease:
-            if(Event.xbutton.button == 1)
-                printf("Left mouse button released\n");
-            if(Event.xbutton.button == 3)
-                printf("Right mouse button released\n");
-        break;
+            break;
         case EnterNotify:
-            printf("Pointer in the window\n");
-        break;
+            break;
         case LeaveNotify:
-            printf("Pointer out of the window\n");
-        break;
+            break;
         case MotionNotify:
-            local_persist int x, y;
-            x = Event.xmotion.x;
-            y = Event.xmotion.y;
-            printf("Pointer at (%i, %i) \n", x, y);
-        break;
+            break;
+        }
     }
 }
 
@@ -278,6 +258,7 @@ internal void InitGL()
     glGenBuffers(1, &VertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
     glBufferStorage(GL_ARRAY_BUFFER, sizeof(Verticies), Verticies, CreateMask);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(Verticies), Verticies, GL_STATIC_DRAW);
 
     glGenBuffers(1, &IndexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
@@ -313,14 +294,16 @@ int main(int argc, char* argv[])
     gladLoadGL();
 
     void* GameLibrary = NULL;
-    void(*Foo)(void);
+    void (*Foo)(void);
+
+    char* GameMemory = Xpermalloc(MEGABYTES_TO_BTYES(200));
 
     GameLibrary = dlopen("./libEnnov.so", RTLD_LAZY);
-    if(!GameLibrary) {
+    if (!GameLibrary) {
         fprintf(stderr, "%s\n", dlerror());
         exit(EXIT_FAILURE);
     }
-    void(*GameUpdateAndRender)(game_input* Input) = (void(*)(game_input* Input))dlsym(GameLibrary, "GameUpdateAndRender");
+    void (*GameUpdateAndRender)(game_input * Input) = (void (*)(game_input * Input)) dlsym(GameLibrary, "GameUpdateAndRender");
 
     InitGL();
 
@@ -328,23 +311,22 @@ int main(int argc, char* argv[])
     game_input* OldInput = &Input[0];
     game_input* NewInput = &Input[1];
 
-    while(State.Running)
-    {
+    while (State.Running) {
+        X11ProcessEvents(&State, NewInput);
+
         glClearColor(0, 0, 0, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glBindVertexArray(VertexArray);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
 
-    	X11ProcessEvents(&State, NewInput);
         GameUpdateAndRender(NewInput);
 
         game_input* Temp = OldInput;
         OldInput = NewInput;
         NewInput = Temp;
-        
 
-    	glXSwapBuffers(State.Display_, State.Window_);
+        glXSwapBuffers(State.Display_, State.Window_);
     }
 
     // NOTE(Rajat): Don't forget to free resources after use
