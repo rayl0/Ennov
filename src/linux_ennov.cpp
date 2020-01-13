@@ -16,6 +16,12 @@
 #include <GL/glx.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 #define MEGABYTES_TO_BTYES(i) \
     (i * 1024 * 1024)
@@ -25,26 +31,29 @@ typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXC
 // TODO(Rajat): Build a software renderer later
 
 global_variable real32 Verticies[] = {
-    -0.5f, -0.5f,
-    -0.5f, 0.5f,
-    0.5f, 0.5f,
-    0.5f, -0.5f
+    0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 0.0f, 1.0f, 0.0f
 };
 
 global_variable uint32 Indicies[] = {
     0, 1, 2,
     2, 3, 0
 };
-
 global_variable char* VertexShaderSource = {
     R"(
     #version 420 core
 
-    in vec2 Pos;
+    in vec4 Position;
+    out vec2 UV;
+    
+    uniform mat4 MP;
 
     void main()
     {
-        gl_Position = vec4(Pos, 0.0f, 1.0f);
+        gl_Position = MP * vec4(Position.xy, 0.0f, 1.0f);
+        UV = Position.zw;
     }
     )"
 };
@@ -53,10 +62,12 @@ global_variable char* FragmentShaderSource = {
     R"(
     #version 420 core
     out vec4 Color;
+    in vec2 UV;
+    uniform sampler2D Texture;
 
     void main()
     {
-        Color = vec4(0.5f, 0.3f, 0.7f, 1.0f);
+        Color = texture(Texture, UV);
     }
     )"
 };
@@ -133,7 +144,7 @@ internal void X11Init(x11_state* State)
     GLXFBConfig FBConfig = X11GetFrameBufferConfig(State);
 
     XVisualInfo* Visual = glXGetVisualFromFBConfig(State->Display_, FBConfig);
-
+   
     XSetWindowAttributes WindowAttribs;
     WindowAttribs.border_pixel = BlackPixel(State->Display_, State->ScreenID);
     WindowAttribs.background_pixel = WhitePixel(State->Display_, State->ScreenID);
@@ -232,6 +243,15 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput)
                 NewInput->Button.Start.EndedDown = true;
                 ++(NewInput->Button.Start.Repeat);
             }
+            if (Key == XK_Down) {
+                NewInput->Button.MoveDown.EndedDown = true;
+                ++(NewInput->Button.Start.Repeat);
+            }
+            #ifdef ENNOV_DEBUG
+            if (Key == XK_Return) {
+                State->Running = false;
+            }
+            #endif //ENNOV_DEBUG
         } break;
         case ButtonPress:
             break;
@@ -252,6 +272,9 @@ internal void InitGL()
     glGenVertexArrays(1, &VertexArray);
     glBindVertexArray(VertexArray);
 
+    real32 BorderColor[4] = {
+        0.5f, 0.5f, 0.2f, 1.0f
+    };
     GLbitfield MapMask = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
     GLbitfield CreateMask = MapMask | GL_DYNAMIC_STORAGE_BIT;
 
@@ -281,8 +304,16 @@ internal void InitGL()
     glUseProgram(ShaderProgram);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, NULL);
 }
+
+/* struct game_memory 
+ * {
+ *     uint32 Size;
+ *     void* Data;
+ *     void* Transform;
+ * };
+ */
 
 int main(int argc, char* argv[])
 {
@@ -292,6 +323,44 @@ int main(int argc, char* argv[])
 
     // NOTE(Rajat): Always load OpenGL after creating a context and making it current
     gladLoadGL();
+    
+    int TexWidth, TexHeight, Channels;
+    uint8* Pixels = stbi_load("./stars.jpg", &TexWidth, &TexHeight, &Channels, 0);
+
+    glm::mat4 Transform = glm::ortho(0.0f, 400.0f, 400.0f, 0.0f, -1.0f, 1.0f);
+    glm::mat4 Model(1.0f);
+
+    float* MatrixArray = glm::value_ptr(Transform);
+    for(int i = 0; i < 16; ++i)
+    {
+        fprintf(stderr, "Value: %f ", MatrixArray[i]);
+        if(i == 3 || i == 7 || i == 11 || i == 15)
+        {
+            fprintf(stderr, "\n");
+        }
+    }
+
+    Model = glm::translate(Model, glm::vec3(0.0f, 0.0f, 0.0f));
+    Model = glm::scale(Model, glm::vec3(200.0f, 200.0f, 1.0f));
+    
+    if(!Pixels)
+    {
+        fprintf(stderr, "Image not loaded");
+    }
+
+    InitGL();
+    
+    uint32 Texture;
+    glGenTextures(1, &Texture);
+    glBindTexture(GL_TEXTURE_2D, Texture);
+    // NOTE(Rajat): Don't ever forget to set texture parameters of the
+    // textures your are using
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TexWidth, TexHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, Pixels);
+    glGenerateMipmap(Texture);
 
     void* GameLibrary = NULL;
     void (*Foo)(void);
@@ -303,24 +372,32 @@ int main(int argc, char* argv[])
         fprintf(stderr, "%s\n", dlerror());
         exit(EXIT_FAILURE);
     }
-    void (*GameUpdateAndRender)(game_input * Input) = (void (*)(game_input * Input)) dlsym(GameLibrary, "GameUpdateAndRender");
-
-    InitGL();
+    void (*GameUpdateAndRender)(game_input * Input, game_memory* memory) = (void (*)(game_input * Input, game_memory* Memory)) dlsym(GameLibrary, "GameUpdateAndRender");
 
     game_input Input[2] = {};
     game_input* OldInput = &Input[0];
     game_input* NewInput = &Input[1];
 
+    game_memory Memory = {};
+    Memory.Transform = &Model; 
+
+    glm::mat4 ModelProj = Transform * Model;
+
+
     while (State.Running) {
         X11ProcessEvents(&State, NewInput);
 
-        glClearColor(0, 0, 0, 1.0f);
+        glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glBindVertexArray(VertexArray);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, Texture);
+        ModelProj = Transform * Model;
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(ModelProj)); 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
 
-        GameUpdateAndRender(NewInput);
+        GameUpdateAndRender(NewInput, &Memory);
 
         game_input* Temp = OldInput;
         OldInput = NewInput;

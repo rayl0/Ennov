@@ -58,7 +58,10 @@ typedef struct game_input
 	};
 }game_input;
 
-void GameUpdateAndRender(game_input* Input);
+typedef struct game_memory 
+{
+    void* Transform;
+}game_memory;
 
 #ifdef __cplusplus
 }
