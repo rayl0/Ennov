@@ -8,6 +8,12 @@ extern "C" {
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef ENNOV_DEBUG
+#define Assert(Expression) {if(!(Expression)){ fprintf(stderr, "Assertion failed: %s\n", #Expression ); *(char*)0 = 1; }}
+#else
+#define Assert(Expression)
+#endif 
+    
 #define global_variable static
 #define local_persist static
 #define internal static
@@ -58,10 +64,12 @@ typedef struct game_input
 	};
 }game_input;
 
-typedef struct game_memory 
+typedef struct game_state 
 {
     void* Transform;
-}game_memory;
+}game_state;
+
+void GameUpdateAndRender(game_state* State, game_input* Input);
 
 #ifdef __cplusplus
 }

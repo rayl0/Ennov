@@ -198,7 +198,7 @@ internal void X11Init(x11_state* State)
     XFree(Visual);
 }
 
-internal void X11ProcessEvents(x11_state* State, game_input* NewInput)
+internal void X11ProcessEvents(x11_state* State, game_input* NewInput, glm::mat4* Projection)
 {
 
     local_persist XEvent Event;
@@ -214,6 +214,7 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput)
             local_persist XWindowAttributes WindowAttribs;
             XGetWindowAttributes(State->Display_, State->Window_, &WindowAttribs);
             glViewport(0, 0, WindowAttribs.width, WindowAttribs.height);
+            *(Projection) = glm::ortho(0.0f, (float)WindowAttribs.width, (float)WindowAttribs.height, 0.0f, -1.0f, 1.0f);
             break;
         case MappingNotify:
             XRefreshKeyboardMapping(&Event.xmapping);
@@ -245,6 +246,18 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput)
             }
             if (Key == XK_Down) {
                 NewInput->Button.MoveDown.EndedDown = true;
+                ++(NewInput->Button.Start.Repeat);
+            }
+            if (Key == XK_Up) {
+                NewInput->Button.MoveUp.EndedDown = true;
+                ++(NewInput->Button.Start.Repeat);
+            }
+            if (Key == XK_Left) {
+                NewInput->Button.MoveLeft.EndedDown = true;
+                ++(NewInput->Button.Start.Repeat);
+            }
+            if (Key == XK_Right) {
+                NewInput->Button.MoveRight.EndedDown = true;
                 ++(NewInput->Button.Start.Repeat);
             }
             #ifdef ENNOV_DEBUG
@@ -327,8 +340,7 @@ int main(int argc, char* argv[])
     int TexWidth, TexHeight, Channels;
     uint8* Pixels = stbi_load("./stars.jpg", &TexWidth, &TexHeight, &Channels, 0);
 
-    glm::mat4 Transform = glm::ortho(0.0f, 400.0f, 400.0f, 0.0f, -1.0f, 1.0f);
-    glm::mat4 Model(1.0f);
+    glm::mat4 Transform = glm::ortho(0.0f, 600.0f, 400.0f, 0.0f, -1.0f, 1.0f);
 
     float* MatrixArray = glm::value_ptr(Transform);
     for(int i = 0; i < 16; ++i)
@@ -340,15 +352,14 @@ int main(int argc, char* argv[])
         }
     }
 
-    Model = glm::translate(Model, glm::vec3(0.0f, 0.0f, 0.0f));
-    Model = glm::scale(Model, glm::vec3(200.0f, 200.0f, 1.0f));
-    
     if(!Pixels)
     {
         fprintf(stderr, "Image not loaded");
     }
 
     InitGL();
+    //glEnable(GL_BLEND);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     uint32 Texture;
     glGenTextures(1, &Texture);
@@ -372,32 +383,32 @@ int main(int argc, char* argv[])
         fprintf(stderr, "%s\n", dlerror());
         exit(EXIT_FAILURE);
     }
-    void (*GameUpdateAndRender)(game_input * Input, game_memory* memory) = (void (*)(game_input * Input, game_memory* Memory)) dlsym(GameLibrary, "GameUpdateAndRender");
+    void (*GameUpdateAndRender)(game_state *State, game_input *Input) = (void (*)(game_state *State, game_input *Input)) dlsym(GameLibrary, "GameUpdateAndRender");
 
     game_input Input[2] = {};
     game_input* OldInput = &Input[0];
     game_input* NewInput = &Input[1];
 
-    game_memory Memory = {};
-    Memory.Transform = &Model; 
+    glm::mat4 Model = glm::mat4(1.0f);
+    game_state GameState = {};
+    GameState.Transform  = &Model; 
 
-    glm::mat4 ModelProj = Transform * Model;
-
+    glm::mat4 ModelProj;
 
     while (State.Running) {
-        X11ProcessEvents(&State, NewInput);
+        X11ProcessEvents(&State, NewInput, &Transform);
 
-        glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
+
+        GameUpdateAndRender(&GameState, NewInput);
 
         glBindVertexArray(VertexArray);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, Texture);
-        ModelProj = Transform * Model;
+        ModelProj = Transform * (*(glm::mat4*)GameState.Transform);
         glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(ModelProj)); 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
-
-        GameUpdateAndRender(NewInput, &Memory);
 
         game_input* Temp = OldInput;
         OldInput = NewInput;

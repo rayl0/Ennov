@@ -1,0 +1,60 @@
+Always remember to write the usage code first 
+before acutally adding anything to your API.
+Because who knows what will be the requirements
+in the future. So, don't preplan only write code when you need it 
+don't get bogged down and write proper and the future-proof code 
+the first time. When solving a problem think of nothing but the 
+problem. Don't think about code quality, performance, design, api or 
+anything, just write whatever comes to your mind
+.
+First use then reuse, often times what happens is you start to 
+code and your are writing something like an input system, you've 
+never done it before. So, you now have problem that is the input 
+system. Lets say you started writing code for the input system if 
+your are a preplanner and oop guy you will be tempting to create 
+a class InputSystem and a bunch of couple other structs. You
+will thinking at this time what are the things to put in InputSystem
+class, how it is going to communicate with other classes. what should 
+be it's private member. Do I need a factory for InputSystem generator. 
+And all crappy stuff will come into your mind and you'll completely forget
+about the problem that you are trying to solve and instead you'll be adding
+piles and piles of uneccessary preplaned code that may or may not be needed.
+The better way of doing this is to take your problem, write whatever comes to 
+your mind about solving that problem without any thinking at all, no performance, no 
+deisgn, no clean code, no abstractions or any buzzword. what you really should be thinking at 
+that moment is how I can solve this problem fast and what is the easiest and fast way to
+write the solution. Once you did that you'll know exactly what steps does the CPU has to 
+take in order to solve your problem. The good thing about this is it goes deep. On the other
+hand the oop code will be tied around objects and you will start considering your problems as 
+objects and most of the time you'll never figure out the steps that your cpu needs to take. 
+This is crucial to optimisation. Without knowing and getting in the web of objects what steps
+the cpu needs to take it's always hard to optimise. The thing oop promotes this 
+
+First Abstract and fit this thing in the nasty web(design) -> Solve the Problem -> Optimise
+
+the abstraction part here takes a lot of work and thinking which could be put in other things
+but who knows while writing this code.
+
+The way I learned to do is:
+
+First solve the problem in easiest way -> Add layers(connect the code into design, abstraction
+and optimisation)
+
+this way you'll always produce isolated, lossely coupled pieces of code that will be always
+easy to maintain.
+
+The other thing is never pile up uneccessary layers on your solutions without coming at 
+point where you have to do it otherwise the code won't work and optimisation and 
+code becomes hairy and hard to maintian, then you can pull out common 
+stuff and effectively reuse, instead of writing reusable code at the first go 
+without knowing who this code is going to used, in that case add the layers.
+
+Once again first use, then reuse.
+
+If you simply remember how to do something, 
+then all you can do is use it the same way over and over, 
+but if you understand how it works, you can reason about it. 
+Once you can reason about something in your mind 
+you can contemplate why it is the way it is, 
+you can apply your entire creative mind to making the most of it, 
+and you can implement and question improvement – you own it intellectually.

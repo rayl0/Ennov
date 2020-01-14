@@ -7,6 +7,7 @@ add_executable(EnnovSandbox src/linux_ennov.cpp)
 add_library(Ennov SHARED src/ennov.cpp)
 
 target_link_libraries(Ennov PUBLIC glm::glm)
+target_compile_options(Ennov PUBLIC -DENNOV_DEBUG)
 
 target_link_libraries(EnnovSandbox PUBLIC X11 GL GLX dl glm::glm)
 target_include_directories(EnnovSandbox PUBLIC src/)

@@ -3,22 +3,42 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
-void GameUpdateAndRender(game_input* Input, game_memory* Memory)
+global_variable int Count = 0; // Counter, will be removed soon
+
+void GameUpdateAndRender(game_state *State, game_input *Input)
 {
-    glm::mat4 Transform = *(glm::mat4*)Memory->Transform;
-   
+    glm::mat4 Transform = glm::mat4(1.0f);
+    local_persist int32 X = 0, Y = 0;
+    // NOTE(Rajat): Never do assertions with a loop increment
+    // Assert(Count < 1);
+
 	if(Input->Button.S.EndedDown) {
-		printf("%s\n", "Hello World!");
-		printf("%s:%i\n", "Repeat Count!", Input->Button.S.Repeat);
+		fprintf(stderr, "%s\n", "Hello World!");
+		fprintf(stderr, "%s:%i\n", "Repeat Count!", Input->Button.S.Repeat);
 	}
 	if(Input->Button.A.EndedDown) {
-		printf("%s\n", "A button pressed");
+		fprintf(stderr, "%s\n", "A button pressed");
 	}
 	if(Input->Button.Start.EndedDown) {
-		printf("%s\n", "The Game has started everybody");
+		fprintf(stderr, "%s\n", "The Game has started everybody");
 	}
-    if(Input->Button.MoveDown.EndedDown) {
-        Transform =  glm::translate(Transform, glm::vec3(1.0f, 0.0f, 0.0f));
+    if(Input->Button.MoveDown.EndedDown) 
+    {
+        Y += 10;
     }
-    *(glm::mat4*)(Memory->Transform) = Transform;
+    if(Input->Button.MoveRight.EndedDown)
+    {
+        X += 10;
+    }
+    if(Input->Button.MoveLeft.EndedDown)
+    {
+        X -= 10;
+    }
+    if(Input->Button.MoveUp.EndedDown)
+    {
+        Y -= 10;
+    }
+    Transform =  glm::translate(Transform, glm::vec3((real32)X, (real32)Y, 0.0f));
+    Transform = glm::scale(Transform, glm::vec3(100.0f, 100.0f, 1.0f));
+    *(glm::mat4*)(State->Transform) = Transform;
 }
