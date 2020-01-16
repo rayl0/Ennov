@@ -202,7 +202,7 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, glm::mat4
 {
 
     local_persist XEvent Event;
-    (*NewInput) = {};
+    (*NewInput).Button  = {};
 
     while (XPending(State->Display_) > 0) {
         XNextEvent(State->Display_, &Event);
@@ -270,11 +270,18 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, glm::mat4
             break;
         case ButtonRelease:
             break;
-        case EnterNotify:
-            break;
-        case LeaveNotify:
-            break;
-        case MotionNotify:
+        case EnterNotify: {
+            XEnterWindowEvent MouseIn = (XEnterWindowEvent)Event.xcrossing;
+            NewInput->Cursor.X = (real32)MouseIn.x;
+            NewInput->Cursor.Y = (real32)MouseIn.y;
+        }   break;
+        case LeaveNotify: {
+        } break;
+        case MotionNotify: {
+            XMotionEvent MouseMove = Event.xmotion;                       
+            NewInput->Cursor.X = (real32)MouseMove.x;
+            NewInput->Cursor.Y = (real32)MouseMove.y;
+        }
             break;
         }
     }
@@ -378,7 +385,7 @@ int main(int argc, char* argv[])
 
     char* GameMemory = Xpermalloc(MEGABYTES_TO_BTYES(200));
 
-    GameLibrary = dlopen("./libEnnov.so", RTLD_LAZY);
+    GameLibrary = dlopen("./ennov.so", RTLD_LAZY);
     if (!GameLibrary) {
         fprintf(stderr, "%s\n", dlerror());
         exit(EXIT_FAILURE);

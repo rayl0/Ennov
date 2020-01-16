@@ -1,16 +1,22 @@
 #include <stdio.h>
+#include <unistd.h>
+#include <memory.h>
 #include "ennov.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "ennov_math.h"
 
 global_variable int Count = 0; // Counter, will be removed soon
 
 void GameUpdateAndRender(game_state *State, game_input *Input)
 {
     glm::mat4 Transform = glm::mat4(1.0f);
-    local_persist int32 X = 0, Y = 0;
+    local_persist rect SpriteRectangle = { {}, {100.0f, 100.0f}};
+    local_persist vec2 MousePosition = {Input->Cursor.X, Input->Cursor.Y};
     // NOTE(Rajat): Never do assertions with a loop increment
     // Assert(Count < 1);
+
+    MousePosition = {Input->Cursor.X, Input->Cursor.Y};
 
 	if(Input->Button.S.EndedDown) {
 		fprintf(stderr, "%s\n", "Hello World!");
@@ -24,21 +30,24 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
 	}
     if(Input->Button.MoveDown.EndedDown) 
     {
-        Y += 10;
+        SpriteRectangle.Pos.Y += 10;
     }
     if(Input->Button.MoveRight.EndedDown)
     {
-        X += 10;
+        SpriteRectangle.Pos.X += 10;
     }
     if(Input->Button.MoveLeft.EndedDown)
     {
-        X -= 10;
+        SpriteRectangle.Pos.X -= 10;
     }
     if(Input->Button.MoveUp.EndedDown)
     {
-        Y -= 10;
+        SpriteRectangle.Pos.Y -= 10;
     }
-    Transform =  glm::translate(Transform, glm::vec3((real32)X, (real32)Y, 0.0f));
-    Transform = glm::scale(Transform, glm::vec3(100.0f, 100.0f, 1.0f));
+    if(RectangleContainsPoint(SpriteRectangle, MousePosition)) {
+        fprintf(stderr, "In the rectangle!\n");
+    }
+    Transform =  glm::translate(Transform, glm::vec3(SpriteRectangle.Pos.X, SpriteRectangle.Pos.Y, 0.0f));
+    Transform = glm::scale(Transform, glm::vec3(SpriteRectangle.Dimensions.X, SpriteRectangle.Dimensions.Y, 1.0f));
     *(glm::mat4*)(State->Transform) = Transform;
 }
