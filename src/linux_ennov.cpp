@@ -1,3 +1,12 @@
+// TODO(Rajat):
+/*
+  --Tilemap Rendering
+  --GJK Collision Detection
+  --Cleaning Up Platform layer
+  --Fullscreen Toggle
+  --Input System Cleaning
+  --2D Renderer
+ */
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xresource.h>
@@ -47,7 +56,7 @@ global_variable char* VertexShaderSource = {
 
     in vec4 Position;
     out vec2 UV;
-    
+
     uniform mat4 MP;
 
     void main()
@@ -202,7 +211,7 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, glm::mat4
 {
 
     local_persist XEvent Event;
-    (*NewInput).Button  = {};
+    NewInput->Button  = {};
 
     while (XPending(State->Display_) > 0) {
         XNextEvent(State->Display_, &Event);
@@ -276,6 +285,8 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, glm::mat4
             NewInput->Cursor.Y = (real32)MouseIn.y;
         }   break;
         case LeaveNotify: {
+            NewInput->Cursor.X = -100.0f;
+            NewInput->Cursor.Y = -100.0f;
         } break;
         case MotionNotify: {
             XMotionEvent MouseMove = Event.xmotion;                       
@@ -390,11 +401,13 @@ int main(int argc, char* argv[])
         fprintf(stderr, "%s\n", dlerror());
         exit(EXIT_FAILURE);
     }
-    void (*GameUpdateAndRender)(game_state *State, game_input *Input) = (void (*)(game_state *State, game_input *Input)) dlsym(GameLibrary, "GameUpdateAndRender");
+    void (*GameUpdateAndRender)(game_state *State, game_input *Input) = (void (*)(game_state *State, game_input *Input)) 
+                                                                         dlsym(GameLibrary, "GameUpdateAndRender");
 
     game_input Input[2] = {};
     game_input* OldInput = &Input[0];
     game_input* NewInput = &Input[1];
+    NewInput->Cursor = {-100.0f, -100.0f};
 
     glm::mat4 Model = glm::mat4(1.0f);
     game_state GameState = {};
@@ -416,10 +429,6 @@ int main(int argc, char* argv[])
         ModelProj = Transform * (*(glm::mat4*)GameState.Transform);
         glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(ModelProj)); 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
-
-        game_input* Temp = OldInput;
-        OldInput = NewInput;
-        NewInput = Temp;
 
         glXSwapBuffers(State.Display_, State.Window_);
     }

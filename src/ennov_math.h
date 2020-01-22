@@ -33,8 +33,8 @@ inline bool32 RectangleContainsPoint(rect Rectangle, vec2 Point)
 {
    rect_projection_data Projection = GetRectangleProjectionData(Rectangle);
 
-   return ((Projection.Max.X > Point.X && Projection.Min.X < Point.X) &&
-          (Projection.Max.Y > Point.Y && Projection.Min.Y < Point.Y));
+   return ((Projection.Max.X >= Point.X && Projection.Min.X <= Point.X) &&
+           (Projection.Max.Y >= Point.Y && Projection.Min.Y <= Point.Y));
 }
 
 #define ENNOV_MATH_H
