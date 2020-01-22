@@ -75,6 +75,16 @@ typedef struct game_state
     void* Transform;
 }game_state;
 
+typedef struct loaded_bitmap
+{
+    uint32 Width;
+    uint32 Height;
+    uint32 Channels;
+    uint8* Pixels;
+}loaded_bitmap;
+
+loaded_bitmap* PlatformLoadBitmapFrom(char* file);
+
 void GameUpdateAndRender(game_state* State, game_input* Input);
 
 #ifdef __cplusplus

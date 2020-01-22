@@ -1,6 +1,10 @@
 #include "glad/glad.c"
 #include "ennov_math.h" 
 #include "ennov_platform.h"
+#include "ennov.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 #ifdef ENNOV_DEBUG
 #define glCall(x) \
@@ -28,12 +32,13 @@ global_variable opengl_context GlobalGLContext;
 
 void OpenGLInitContext()
 {
+    gladLoadGL();
      if(!GlobalGLContext.IsInitialized)
      {
           GlobalGLContext.IsInitialized = true;
           opengl_rect_common* RectData = &GlobalGLContext.OpenGLRectangleData;
-          glCall(glGenVertexArrays(1, &RectData->VertexArray));
-          glCall(glBindVertexArray(RectData->VertexArray));
+          glGenVertexArrays(1, &RectData->VertexArray);
+          glBindVertexArray(RectData->VertexArray);
 
           real32 Verticies[] =
           {
@@ -53,17 +58,16 @@ void OpenGLInitContext()
                  #version 330 core
 
                  in vec4 Position;
-                 in vec4 Color;
 
                  out vs_out {
-                     vec4 FragColor;
                      vec2 TexCoords;
                  } VertexShaderOutput;
 
+                 uniform mat4 Projection;
+
                  void main() {
-                     gl_Position = vec4(Position.xy, 0.0f, 1.0f);
-                     VertexShaderOutput.FragColor = Color;
-                     VertexShader.TexCoords = Position.xy;
+                     gl_Position = Projection * vec4(Position.xy, 0.0f, 1.0f);
+                     VertexShaderOutput.TexCoords = Position.xy;
                  }
            )"};
 
@@ -72,36 +76,89 @@ void OpenGLInitContext()
                    #version 330 core
 
                    in vs_out {
-                      vec4 FragColor;
                       vec2 TexCoords;
                    } FragmentShaderInput;
 
                    out vec4 OutColor;
 
-                   uniform sampler2D Texture;
-                   uniform uint DrawFlags;
+                 //  uniform sampler2D Texture;
+                 //  uniform uint DrawFlags;
+                 //    uniform vec4 FragColor;
 
                    void main()
                    {
-                      if(DrawFlags & (1 << 0))
-                         OutColor = texture(Texture,
-                                    FragmentShaderInput.TexCoords);
-                      else if(DrawFlags & (1 << 1))
-                         OutColor = FragColor;
-                      else
-                         OutColor = FragColor * texture(Texture, FragmentShaderInput.TexCoords);
+                   //   if(DrawFlags & (1 << 0))
+                   //    OutColor = texture(Texture,
+                   //                 FragmentShaderInput.TexCoords);
+                   //   else if(DrawFlags & (1 << 1))
+                         OutColor = vec4(1.0f, 0.5f, 0.3f, 1.0f);
+                   //   else
+                   //      OutColor = FragColor * texture(Texture, FragmentShaderInput.TexCoords);
                    }
               )"
           };
 
-          glCall(glGenBuffers(1, &RectData->VertexBuffer));
-          glCall(glGenBuffers(1, &RectData->IndexBuffer));
+          glGenBuffers(1, &RectData->VertexBuffer);
+          glGenBuffers(1, &RectData->IndexBuffer);
 
-          glCall(glBindBuffer(GL_ARRAY_BUFFER, RectData->VertexBuffer));
-          glCall(glBufferData(GL_ARRAY_BUFFER, sizeof(Verticies), Verticies, GL_STATIC_DRAW));
+          glBindBuffer(GL_ARRAY_BUFFER, RectData->VertexBuffer);
+          glBufferData(GL_ARRAY_BUFFER, sizeof(Verticies), Verticies, GL_STATIC_DRAW);
 
-          glCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, RectData->IndexBuffer));
-          glCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indicies), Indicies, GL_STATIC_DRAW));
+          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, RectData->IndexBuffer);
+          glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indicies), Indicies, GL_STATIC_DRAW);
+
+          uint8 VertexShader = glCreateShader(GL_VERTEX_SHADER);
+          glShaderSource(VertexShader, 1, &VertexShaderSource, NULL);
+          glCompileShader(VertexShader);
+
+          uint8 FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+          glShaderSource(FragmentShader, 1, &FragmentShaderSource, NULL);
+          glCompileShader(FragmentShader);
+
+          RectData->ShaderProgram = glCreateProgram();
+          glAttachShader(RectData->ShaderProgram, VertexShader);
+          glAttachShader(RectData->ShaderProgram, FragmentShader);
+          glLinkProgram(RectData->ShaderProgram);
+          glValidateProgram(RectData->ShaderProgram);
+
+          glUseProgram(RectData->ShaderProgram);
+
+          glEnableVertexAttribArray(0);
+          glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, NULL);
      }
+}
+
+void OpenGLDrawRectangle(rect_draw_attribs* DrawAttribs, uint32 DrawFlags)
+{
+    if(GlobalGLContext.IsInitialized)
+    {
+        opengl_rect_common* RectData = &GlobalGLContext.OpenGLRectangleData;
+        glBindVertexArray(RectData->VertexArray);
+        glm::mat4 Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
+        glm::mat4 Model = glm::mat4(1.0f);
+
+        Model = glm::translate(Model, glm::vec3(DrawAttribs->Position.x, DrawAttribs->Position.y, 0.0f));
+        Model = glm::scale(Model, glm::vec3(DrawAttribs->Dimensions.x, DrawAttribs->Dimensions.y, 1.0f));
+
+        Projection = Projection * Model;
+
+        glUseProgram(RectData->ShaderProgram);
+
+        uint8 MatrixLocation = glGetUniformLocation(RectData->ShaderProgram, "Projection");
+        uint8 DrawFlagsLocation = glGetUniformLocation(RectData->ShaderProgram, "Color");
+        glUniformMatrix4fv(MatrixLocation, 1, GL_FALSE, glm::value_ptr(Projection));
+        // glUniform1ui(DrawFlagsLocation, DrawFlags);
+   
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+    }
+    else
+    {
+        //TODO(Rajat): Logging
+    }
+}
+
+void DrawRectangle(rect_draw_attribs* DrawAttribs, uint32 DrawFlags)
+{
+    OpenGLDrawRectangle(DrawAttribs, DrawFlags); 
 }
 

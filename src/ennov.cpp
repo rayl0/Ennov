@@ -5,16 +5,10 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "ennov_math.h"
+#include "ennov_gl.cpp"
 
 global_variable int Count = 0; // Counter, will be removed soon
 
-struct draw_attribs
-{
-  vec2 Position;
-  vec2 Dimensions;
-  // vec4 Color;
-  // loaded_bitmap* Texture;
-};
 void GameUpdateAndRender(game_state *State, game_input *Input)
 {
   glm::mat4 Transform = glm::mat4(1.0f);
@@ -25,6 +19,7 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
   MousePosition = {Input->Cursor.X, Input->Cursor.Y};
   
   // DrawRectangle(draw_attribs);
+  OpenGLInitContext();
 
   if(Input->Button.S.EndedDown) {
     fprintf(stderr, "%s\n", "Hello World!");
@@ -38,19 +33,19 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
   }
   if(Input->Button.MoveDown.EndedDown) 
     {
-      SpriteRectangle.Pos.Y += 10;
+      SpriteRectangle.Pos.y += 10;
     }
   if(Input->Button.MoveRight.EndedDown)
     {
-      SpriteRectangle.Pos.X += 10;
+      SpriteRectangle.Pos.x += 10;
     }
   if(Input->Button.MoveLeft.EndedDown)
     {
-      SpriteRectangle.Pos.X -= 10;
+      SpriteRectangle.Pos.x -= 10;
     }
   if(Input->Button.MoveUp.EndedDown)
     {
-      SpriteRectangle.Pos.Y -= 10;
+      SpriteRectangle.Pos.y -= 10;
     }
   if(Input->Button.Select.EndedDown)
     {
@@ -59,7 +54,9 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
   if(RectangleContainsPoint(SpriteRectangle, MousePosition)) {
     fprintf(stderr, "In the rectangle!\n");
   } 
-  Transform =  glm::translate(Transform, glm::vec3(SpriteRectangle.Pos.X, SpriteRectangle.Pos.Y, 0.0f));
-  Transform = glm::scale(Transform, glm::vec3(SpriteRectangle.Dimensions.X, SpriteRectangle.Dimensions.Y, 1.0f));
+  Transform =  glm::translate(Transform, glm::vec3(SpriteRectangle.Pos.x, SpriteRectangle.Pos.y, 0.0f));
+  Transform = glm::scale(Transform, glm::vec3(SpriteRectangle.Dimensions.x, SpriteRectangle.Dimensions.y, 1.0f));
   *(glm::mat4*)(State->Transform) = Transform;
+  rect_draw_attribs R1 = {{100.0f, 100.0f}, {100.0f, 100.0f}};
+  DrawRectangle(&R1, RECTANGLE_FILL_COLOR);
 }
