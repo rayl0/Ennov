@@ -24,13 +24,14 @@ struct opengl_rect_common
 
 struct opengl_context
 {
+     glm::mat4 Projection;
      opengl_rect_common OpenGLRectangleData;
      bool32 IsInitialized;
 };
 
 global_variable opengl_context GlobalGLContext;
 
-void OpenGLInitContext()
+void OpenGLInitContext(vec2 WindowAttribs)
 {
      if(!GlobalGLContext.IsInitialized)
      {
@@ -138,6 +139,7 @@ void OpenGLInitContext()
           glEnableVertexAttribArray(0);
           glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, NULL);
      }
+     GlobalGLContext.Projection = glm::ortho(0.0f, WindowAttribs.x, WindowAttribs.y, 0.0f, -1.0f, 1.0f);
 }
 
 void OpenGLDrawRectangle(rect_draw_attribs* DrawAttribs, uint32 DrawFlags)
@@ -146,13 +148,12 @@ void OpenGLDrawRectangle(rect_draw_attribs* DrawAttribs, uint32 DrawFlags)
     {
         opengl_rect_common* RectData = &GlobalGLContext.OpenGLRectangleData;
         glBindVertexArray(RectData->VertexArray);
-        glm::mat4 Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
         glm::mat4 Model = glm::mat4(1.0f);
 
         Model = glm::translate(Model, glm::vec3(DrawAttribs->Position.x, DrawAttribs->Position.y, 0.0f));
         Model = glm::scale(Model, glm::vec3(DrawAttribs->Dimensions.x, DrawAttribs->Dimensions.y, 1.0f));
 
-        Projection = Projection * Model;
+        glm::mat4 Projection = GlobalGLContext.Projection * Model;
 
         uint8 MatrixLocation = glGetUniformLocation(RectData->ShaderProgram, "Projection");
         uint8 ColorLocation = glGetUniformLocation(RectData->ShaderProgram, "Color");

@@ -116,7 +116,7 @@ internal void X11Init(x11_state* State)
     WindowAttribs.event_mask = ExposureMask;
 
     State->Window_ = XCreateWindow(State->Display_, RootWindowOfScreen(State->Screen_),
-        50, 50, 600, 400, 5, Visual->depth, InputOutput, Visual->visual,
+        50, 50, 800, 600, 5, Visual->depth, InputOutput, Visual->visual,
         CWBackPixel | CWColormap | CWBorderPixel | CWEventMask, &WindowAttribs);
 
     glXCreateContextAttribsARBProc glXCreateContextAttribsARB = 0;
@@ -160,7 +160,7 @@ internal void X11Init(x11_state* State)
     XFree(Visual);
 }
 
-internal void X11ProcessEvents(x11_state* State, game_input* NewInput, glm::mat4* Projection)
+internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_state* GameState)
 {
 
     local_persist XEvent Event;
@@ -176,7 +176,8 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, glm::mat4
             local_persist XWindowAttributes WindowAttribs;
             XGetWindowAttributes(State->Display_, State->Window_, &WindowAttribs);
             glViewport(0, 0, WindowAttribs.width, WindowAttribs.height);
-            *(Projection) = glm::ortho(0.0f, (float)WindowAttribs.width, (float)WindowAttribs.height, 0.0f, -1.0f, 1.0f);
+            GameState->ContextAttribs.Width = WindowAttribs.width;
+            GameState->ContextAttribs.Height = WindowAttribs.height;
             break;
         case MappingNotify:
             XRefreshKeyboardMapping(&Event.xmapping);
@@ -222,8 +223,12 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, glm::mat4
                 NewInput->Button.MoveRight.EndedDown = true;
                 ++(NewInput->Button.Start.Repeat);
             }
+            if(Key == XK_space) {
+              NewInput->Button.Start.EndedDown = true;
+              ++(NewInput->Button.Start.Repeat);
+            }
             #ifdef ENNOV_DEBUG
-            if (Key == XK_Return) {
+            if (Key == XK_Tab) {
                 State->Running = false;
             }
             #endif //ENNOV_DEBUG
@@ -318,16 +323,12 @@ int main(int argc, char* argv[])
     game_input* NewInput = &Input[1];
     NewInput->Cursor = {-100.0f, -100.0f};
 
-    glm::mat4 Model = glm::mat4(1.0f);
     game_state GameState = {};
-    GameState.Transform  = &Model; 
-
-    glm::mat4 ModelProj;
 
     GameState.Interface.PlatformLoadBitmapFrom = PlatformLoadBitmapFrom;
 
     while (State.Running) {
-        X11ProcessEvents(&State, NewInput, &Transform);
+        X11ProcessEvents(&State, NewInput, &GameState);
 
         glClear(GL_COLOR_BUFFER_BIT);
         glClearColor(0.5f, 0.5f, 0.5f, 0.5f);

@@ -83,6 +83,15 @@ inline rect_projection_data GetRectangleProjectionData(rect Rectangle)
    return NewProjection;
 };
 
+inline bool32 RectangleColloide(rect Rectangle1, rect Rectangle2)
+{
+  rect_projection_data Proj1 = GetRectangleProjectionData(Rectangle1);
+  rect_projection_data Proj2 = GetRectangleProjectionData(Rectangle2);
+
+  return ((Proj1.Min.x >= Proj2.Min.x && Proj1.Max.x <= Proj2.Max.x) &&
+          (Proj1.Min.y <= Proj2.Min.y && Proj1.Max.y >= Proj2.Max.y));
+};
+
 inline bool32 RectangleContainsPoint(rect Rectangle, vec2 Point)
 {
    rect_projection_data Projection = GetRectangleProjectionData(Rectangle);

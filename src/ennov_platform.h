@@ -72,7 +72,7 @@ typedef struct game_input
 
 typedef struct loaded_bitmap
 {
-    uint32 Width;
+  uint32 Width;
     uint32 Height;
     uint32 Channels;
     uint8* Pixels;
@@ -86,8 +86,13 @@ typedef struct game_interface
 typedef struct game_state 
 {
 	game_interface Interface;
-    void* Transform;
+  struct window_context_attribs
+  {
+    int32 Width;
+    int32 Height;
+  }ContextAttribs;
 }game_state;
+
 
 void GameUpdateAndRender(game_state* State, game_input* Input);
 
