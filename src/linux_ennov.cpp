@@ -19,7 +19,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include "ennov_gl.cpp"
+#include "glad/glad.c"
 #include "ennov_platform.h"
 
 #include <GL/glx.h>
@@ -38,53 +38,6 @@
 typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
 
 // TODO(Rajat): Build a software renderer later
-
-global_variable real32 Verticies[] = {
-    0.0f, 0.0f, 0.0f, 0.0f,
-    0.0f, 1.0f, 0.0f, 1.0f,
-    1.0f, 1.0f, 1.0f, 1.0f,
-    1.0f, 0.0f, 1.0f, 0.0f
-};
-
-global_variable uint32 Indicies[] = {
-    0, 1, 2,
-    2, 3, 0
-};
-global_variable char* VertexShaderSource = {
-    R"(
-    #version 420 core
-
-    in vec4 Position;
-    out vec2 UV;
-
-    uniform mat4 MP;
-
-    void main()
-    {
-        gl_Position = MP * vec4(Position.xy, 0.0f, 1.0f);
-        UV = Position.zw;
-    }
-    )"
-};
-
-global_variable char* FragmentShaderSource = {
-    R"(
-    #version 420 core
-    out vec4 Color;
-    in vec2 UV;
-    uniform sampler2D Texture;
-
-    void main()
-    {
-        Color = texture(Texture, UV);
-    }
-    )"
-};
-
-global_variable GLuint VertexBuffer;
-global_variable GLuint IndexBuffer;
-global_variable GLuint ShaderProgram;
-global_variable GLuint VertexArray;
 
 struct x11_state {
     Display* Display_;
@@ -298,45 +251,25 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, glm::mat4
     }
 }
 
-internal void InitGL()
+loaded_bitmap* PlatformLoadBitmapFrom(char* file)
 {
-    glGenVertexArrays(1, &VertexArray);
-    glBindVertexArray(VertexArray);
+    int TexWidth, TexHeight, Channels;
+    uint8* Pixels = stbi_load("./stars.jpg", &TexWidth, &TexHeight, &Channels, 0);
 
-    real32 BorderColor[4] = {
-        0.5f, 0.5f, 0.2f, 1.0f
-    };
-    GLbitfield MapMask = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-    GLbitfield CreateMask = MapMask | GL_DYNAMIC_STORAGE_BIT;
-
-    glGenBuffers(1, &VertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
-    glBufferStorage(GL_ARRAY_BUFFER, sizeof(Verticies), Verticies, CreateMask);
-    //glBufferData(GL_ARRAY_BUFFER, sizeof(Verticies), Verticies, GL_STATIC_DRAW);
-
-    glGenBuffers(1, &IndexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indicies), Indicies, GL_STATIC_DRAW);
-
-    GLuint VertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(VertexShader, 1, &VertexShaderSource, NULL);
-    glCompileShader(VertexShader);
-
-    GLuint FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(FragmentShader, 1, &FragmentShaderSource, NULL);
-    glCompileShader(FragmentShader);
-
-    ShaderProgram = glCreateProgram();
-    glAttachShader(ShaderProgram, VertexShader);
-    glAttachShader(ShaderProgram, FragmentShader);
-    glLinkProgram(ShaderProgram);
-    glValidateProgram(ShaderProgram);
-
-    glUseProgram(ShaderProgram);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, NULL);
+    if(Pixels) {
+        loaded_bitmap* NewBitmap = (loaded_bitmap*)malloc(sizeof(loaded_bitmap));
+        NewBitmap->Width = TexWidth;
+        NewBitmap->Height = TexHeight;
+        NewBitmap->Channels = Channels;
+        NewBitmap->Pixels = Pixels;
+        return NewBitmap;
+    }
+    else {
+        // TODO(Rajat): Logging
+    }
+    return NULL;
 }
+
 
 /* struct game_memory 
  * {
@@ -354,9 +287,6 @@ int main(int argc, char* argv[])
 
     // NOTE(Rajat): Always load OpenGL after creating a context and making it current
     gladLoadGL();
-    
-    int TexWidth, TexHeight, Channels;
-    uint8* Pixels = stbi_load("./stars.jpg", &TexWidth, &TexHeight, &Channels, 0);
 
     glm::mat4 Transform = glm::ortho(0.0f, 600.0f, 400.0f, 0.0f, -1.0f, 1.0f);
 
@@ -369,27 +299,6 @@ int main(int argc, char* argv[])
             fprintf(stderr, "\n");
         }
     }
-
-    if(!Pixels)
-    {
-        fprintf(stderr, "Image not loaded");
-    }
-
-    InitGL();
-    //glEnable(GL_BLEND);
-    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
-    uint32 Texture;
-    glGenTextures(1, &Texture);
-    glBindTexture(GL_TEXTURE_2D, Texture);
-    // NOTE(Rajat): Don't ever forget to set texture parameters of the
-    // textures your are using
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TexWidth, TexHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, Pixels);
-    glGenerateMipmap(Texture);
 
     void* GameLibrary = NULL;
     void (*Foo)(void);
@@ -415,6 +324,8 @@ int main(int argc, char* argv[])
 
     glm::mat4 ModelProj;
 
+    GameState.Interface.PlatformLoadBitmapFrom = PlatformLoadBitmapFrom;
+
     while (State.Running) {
         X11ProcessEvents(&State, NewInput, &Transform);
 
@@ -422,13 +333,6 @@ int main(int argc, char* argv[])
         glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
 
         GameUpdateAndRender(&GameState, NewInput);
-
-        glBindVertexArray(VertexArray);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, Texture);
-        ModelProj = Transform * (*(glm::mat4*)GameState.Transform);
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(ModelProj)); 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
 
         glXSwapBuffers(State.Display_, State.Window_);
     }

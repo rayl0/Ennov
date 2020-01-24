@@ -70,11 +70,6 @@ typedef struct game_input
 	};
 }game_input;
 
-typedef struct game_state 
-{
-    void* Transform;
-}game_state;
-
 typedef struct loaded_bitmap
 {
     uint32 Width;
@@ -83,7 +78,16 @@ typedef struct loaded_bitmap
     uint8* Pixels;
 }loaded_bitmap;
 
-loaded_bitmap* PlatformLoadBitmapFrom(char* file);
+typedef struct game_interface
+{
+	loaded_bitmap*(*PlatformLoadBitmapFrom)(char* File);
+}game_interface;
+
+typedef struct game_state 
+{
+	game_interface Interface;
+    void* Transform;
+}game_state;
 
 void GameUpdateAndRender(game_state* State, game_input* Input);
 

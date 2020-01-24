@@ -32,9 +32,9 @@ global_variable opengl_context GlobalGLContext;
 
 void OpenGLInitContext()
 {
-    gladLoadGL();
      if(!GlobalGLContext.IsInitialized)
      {
+          gladLoadGL();
           GlobalGLContext.IsInitialized = true;
           opengl_rect_common* RectData = &GlobalGLContext.OpenGLRectangleData;
           glGenVertexArrays(1, &RectData->VertexArray);
@@ -55,7 +55,7 @@ void OpenGLInitContext()
           };
 
           char* VertexShaderSource = {R"(
-                 #version 330 core
+                 #version 420 core
 
                  in vec4 Position;
 
@@ -73,7 +73,7 @@ void OpenGLInitContext()
 
           char* FragmentShaderSource =  {
              R"(
-                   #version 330 core
+                   #version 420 core
 
                    in vs_out {
                       vec2 TexCoords;
@@ -81,19 +81,20 @@ void OpenGLInitContext()
 
                    out vec4 OutColor;
 
-                 //  uniform sampler2D Texture;
-                 //  uniform uint DrawFlags;
-                 //    uniform vec4 FragColor;
+                   uniform sampler2D Texture;
+                   uniform uint Attrib;
+                   uniform vec4 Color;
 
                    void main()
                    {
-                   //   if(DrawFlags & (1 << 0))
-                   //    OutColor = texture(Texture,
-                   //                 FragmentShaderInput.TexCoords);
-                   //   else if(DrawFlags & (1 << 1))
-                         OutColor = vec4(1.0f, 0.5f, 0.3f, 1.0f);
-                   //   else
-                   //      OutColor = FragColor * texture(Texture, FragmentShaderInput.TexCoords);
+                      if(Attrib == 1)
+                      {
+                        OutColor = Color;
+                      }
+                      else if(Attrib == 2)
+                      {
+                        OutColor = texture(Texture, FragmentShaderInput.TexCoords);
+                      }
                    }
               )"
           };
@@ -121,6 +122,17 @@ void OpenGLInitContext()
           glLinkProgram(RectData->ShaderProgram);
           glValidateProgram(RectData->ShaderProgram);
 
+          glEnable(GL_BLEND);
+          glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+          glGenTextures(1, &RectData->Texture);
+          glBindTexture(GL_TEXTURE_2D, RectData->Texture);
+          // NOTE(Rajat): Don't ever forget to set texture parameters of the
+          // textures your are using
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+
           glUseProgram(RectData->ShaderProgram);
 
           glEnableVertexAttribArray(0);
@@ -142,14 +154,23 @@ void OpenGLDrawRectangle(rect_draw_attribs* DrawAttribs, uint32 DrawFlags)
 
         Projection = Projection * Model;
 
-        glUseProgram(RectData->ShaderProgram);
-
         uint8 MatrixLocation = glGetUniformLocation(RectData->ShaderProgram, "Projection");
-        uint8 DrawFlagsLocation = glGetUniformLocation(RectData->ShaderProgram, "Color");
+        uint8 ColorLocation = glGetUniformLocation(RectData->ShaderProgram, "Color");
+        int8 DrawFlagsLocation = glGetUniformLocation(RectData->ShaderProgram, "Attrib");
+
         glUniformMatrix4fv(MatrixLocation, 1, GL_FALSE, glm::value_ptr(Projection));
-        // glUniform1ui(DrawFlagsLocation, DrawFlags);
-   
+        glUniform1ui(DrawFlagsLocation, DrawFlags);
+        glUniform4fv(ColorLocation, 1, (const GLfloat*)&DrawAttribs->Color.data);
+        
+        if(DrawFlags == RECTANGLE_FILL_TEXTURE) {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, DrawAttribs->Texture->Width, DrawAttribs->Texture->Height, 
+                                    0, GL_RGB, GL_UNSIGNED_BYTE, DrawAttribs->Texture->Pixels);
+                glGenerateMipmap(RectData->Texture);
+        }
+
+        glUseProgram(RectData->ShaderProgram);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+        glBindVertexArray(0);
     }
     else
     {
