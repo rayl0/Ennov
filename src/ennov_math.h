@@ -60,6 +60,34 @@ struct vec4
   };
 };
 
+inline vec2
+operator-(vec2& Vector)
+{
+  vec2 Negative;
+  Negative.x = -(Vector.x);
+  Negative.y = -(Vector.y);
+
+  return Negative;
+}
+
+inline vec2
+operator-(vec2& Vec1, vec2& Vec2)
+{
+  vec2 Final;
+  Final.x = Vec1.x - Vec2.x;
+  Final.y = Vec2.y - Vec2.y;
+  return Final;
+}
+
+inline vec2
+operator+(vec2& Vec1, vec2& Vec2)
+{ 
+  vec2 Final;
+  Final.x = Vec1.x + Vec2.x;
+  Final.y = Vec2.y + Vec2.y;
+  return Final;
+}
+
 struct rect
 {
     vec2 Pos;
@@ -85,11 +113,13 @@ inline rect_projection_data GetRectangleProjectionData(rect Rectangle)
 
 inline bool32 RectangleColloide(rect Rectangle1, rect Rectangle2)
 {
-  rect_projection_data Proj1 = GetRectangleProjectionData(Rectangle1);
-  rect_projection_data Proj2 = GetRectangleProjectionData(Rectangle2);
+  bool32 ColloideX = Rectangle1.Pos.x + Rectangle1.Dimensions.x >=
+    Rectangle2.Pos.x && Rectangle2.Pos.x + Rectangle2.Dimensions.x >= Rectangle1.Pos.x;
 
-  return ((Proj1.Min.x >= Proj2.Min.x && Proj1.Max.x <= Proj2.Max.x) &&
-          (Proj1.Min.y <= Proj2.Min.y && Proj1.Max.y >= Proj2.Max.y));
+  bool32 ColloideY = Rectangle1.Pos.y + Rectangle1.Dimensions.y >=
+    Rectangle2.Pos.y && Rectangle2.Pos.y + Rectangle2.Dimensions.y >= Rectangle1.Pos.y;
+
+  return ColloideX && ColloideY;
 };
 
 inline bool32 RectangleContainsPoint(rect Rectangle, vec2 Point)

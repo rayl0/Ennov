@@ -259,7 +259,7 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
 loaded_bitmap* PlatformLoadBitmapFrom(char* file)
 {
     int TexWidth, TexHeight, Channels;
-    uint8* Pixels = stbi_load("./stars.jpg", &TexWidth, &TexHeight, &Channels, 0);
+    uint8* Pixels = stbi_load(file, &TexWidth, &TexHeight, &Channels, 0);
 
     if(Pixels) {
         loaded_bitmap* NewBitmap = (loaded_bitmap*)malloc(sizeof(loaded_bitmap));

@@ -96,6 +96,10 @@ void OpenGLInitContext(vec2 WindowAttribs)
                       {
                         OutColor = texture(Texture, FragmentShaderInput.TexCoords);
                       }
+                      else
+                      {
+                        OutColor = Color * texture(Texture, FragmentShaderInput.TexCoords);
+                      }
                    }
               )"
           };
@@ -162,13 +166,16 @@ void OpenGLDrawRectangle(rect_draw_attribs* DrawAttribs, uint32 DrawFlags)
         glUniformMatrix4fv(MatrixLocation, 1, GL_FALSE, glm::value_ptr(Projection));
         glUniform1ui(DrawFlagsLocation, DrawFlags);
         glUniform4fv(ColorLocation, 1, (const GLfloat*)&DrawAttribs->Color.data);
-        
-        if(DrawFlags == RECTANGLE_FILL_TEXTURE) {
+
+        local_persist uint32 Count = 0;
+        if(DrawAttribs->Id == 0 && Count == 0) {
+        if(DrawFlags == RECTANGLE_FILL_TEXTURE || DrawFlags == RECTANGLE_FILL_TEXCOLOR) {
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, DrawAttribs->Texture->Width, DrawAttribs->Texture->Height, 
                                     0, GL_RGB, GL_UNSIGNED_BYTE, DrawAttribs->Texture->Pixels);
                 glGenerateMipmap(RectData->Texture);
         }
-
+        }
+        Count++;
         glUseProgram(RectData->ShaderProgram);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
         glBindVertexArray(0);

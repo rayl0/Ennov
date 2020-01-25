@@ -8,10 +8,12 @@ struct rect_draw_attribs
   vec2 Dimensions;
   vec4 Color;
   loaded_bitmap* Texture;
+  uint32 Id;
 };
 
 enum RectangleDrawFlags
 {
+    RECTANGLE_FILL_TEXCOLOR = 0,
     RECTANGLE_FILL_COLOR = (1 << 0),
     RECTANGLE_FILL_TEXTURE = (1 << 1)
 };
