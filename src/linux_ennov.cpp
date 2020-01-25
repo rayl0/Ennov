@@ -1,5 +1,7 @@
 // TODO(Rajat):
 /*
+  --Toggle Maximize
+  --Text Rendering
   --Tilemap Rendering
   --GJK Collision Detection
   --Cleaning Up Platform layer
@@ -158,6 +160,30 @@ internal void X11Init(x11_state* State)
 
     State->Running = true;
     XFree(Visual);
+}
+
+Status
+ToggleMaximize(Display* display, Window window)
+{
+  XClientMessageEvent Event = {};
+  Atom WmState = XInternAtom(display, "_NET_WM_STATE", False);
+  Atom MaxH  =  XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+  Atom MaxV  =  XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+
+  if(WmState == None) return 0;
+
+  Event.type = ClientMessage;
+  Event.format = 32;
+  Event.window = window;
+  Event.message_type = WmState;
+  Event.data.l[0] = 2; // _NET_WM_STATE_TOGGLE 2 according to spec; Not defined in my headers
+  Event.data.l[1] = MaxH;
+  Event.data.l[2] = MaxV;
+  Event.data.l[3] = 1;
+
+  return XSendEvent(display, DefaultRootWindow(display), False,
+                    SubstructureNotifyMask,
+                    (XEvent *)&Event);
 }
 
 internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_state* GameState)
