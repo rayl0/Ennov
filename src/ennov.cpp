@@ -17,11 +17,11 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
   // NOTE(Rajat): Never do assertions within a loop increment
   // Assert(Count < 1); 
   
-  OpenGLInitContext({State->ContextAttribs.Width, State->ContextAttribs.Height});
+  //  OpenGLInitContext({State->ContextAttribs.Width, State->ContextAttribs.Height});
   // DrawRectangle(draw_attribs);
 
-  local_persist rect_draw_attribs Paddle = {{0.0f, 590.0f}, {100.0f, 10.0f}, {1.0f, 1.0f, 0.0f, 1.0f}};
-  local_persist rect_draw_attribs Ball = {{Paddle.Dimensions.x / 2.0f, 590.0f - Paddle.Dimensions.y}, {10.0f, 10.0f}, {0.5f, 0.3f, 0.7f, 1.0f}};
+  local_persist rect_draw_attribs Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}, {1.0f, 1.0f, 0.0f, 1.0f}};
+  local_persist rect_draw_attribs Ball = {{Paddle.Dimensions.x / 2.0f, 500.0f - Paddle.Dimensions.y}, {20.0f, 20.0f}, {0.5f, 0.3f, 0.7f, 1.0f}};
   local_persist bool32 Fired = false;
   local_persist vec2 Direction = {4.0f, 4.0f};
   local_persist rect BallRect;
@@ -94,10 +94,13 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
 
   if(Count == 0)
     {
-      TileAttrib.Texture = State->Interface.PlatformLoadBitmapFrom("./brick.jpg");
+
+      gladLoadGL();
+      Paddle.Id = 1;
+      TileAttrib.Texture = State->Interface.PlatformLoadBitmapFrom("./block-textures.png");
+      Paddle.Texture = State->Interface.PlatformLoadBitmapFrom("./paddle.png");
     }
 
-  Count++;
   local_persist uint8 TileMap[4][8] = {
       {1, 2, 3, 1, 4, 1, 2, 3},
       {5, 3, 5, 1, 3, 5, 4, 1},
@@ -107,6 +110,19 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
 
   uint32 Id = 0;
   uint32 NumActieTiles = 0;
+
+  local_persist batch Batch = {};
+  if(Count == 0) {
+    local_persist f32 Buffer[1024];
+    Batch.BatchId = 0;
+    Batch.VertexBufferData = Buffer;
+    Batch.IsInitialized = false;
+  }
+
+  local_persist glm::mat4 Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
+
+  StartBatch(&Batch, TileAttrib.Texture, Projection);
+ 
   for(int i = 0; i < 4; ++i)
   {
       for(int j = 0; j < 8; ++j)
@@ -126,7 +142,7 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
               TileAttrib.Color = {0.0f, 0.3f, 0.9f, 1.0f};
           else if(TileMap[i][j] == 5)
               TileAttrib.Color = {1.0f, 0.7f, 0.3f, 1.0f};
-          DrawRectangle(&TileAttrib, RECTANGLE_FILL_TEXCOLOR);
+          DrawBatchRectangle(&Batch, TileAttrib.Position, TileAttrib.Dimensions, TileAttrib.Color);
           if(RectangleColloide({TileAttrib.Position, TileAttrib.Dimensions}, BallRect))
             {
               fprintf(stderr, "Tile Colloide %i\n", TileMap[i][j]);
@@ -142,6 +158,8 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
       }
   }
 
+  EndBatch(&Batch);
+
   if(NumActieTiles == 0)
     {
       fprintf(stderr, "You Win!\n");
@@ -149,6 +167,27 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
     }
 
 
-  DrawRectangle(&Paddle, RECTANGLE_FILL_COLOR);
-  DrawRectangle(&Ball, RECTANGLE_FILL_COLOR);
+  local_persist batch BallBatch = {};
+  local_persist batch PaddleBatch = {};
+  local_persist f32 VertexBufferData[100];
+
+  if(Count == 0) {
+    BallBatch.BatchId = 1;
+    BallBatch.VertexBufferData = VertexBufferData;
+    BallBatch.VertexBufferSize = 100;
+    BallBatch.IsInitialized = false;
+    PaddleBatch.BatchId = 2;
+    PaddleBatch.VertexBufferData = (f32*)malloc(100);
+    PaddleBatch.IsInitialized = false;
+  }
+
+  StartBatch(&BallBatch, TileAttrib.Texture, Projection);
+  DrawBatchRectangle(&BallBatch, Ball.Position, Ball.Dimensions, {1.0f, 1.0f, 1.0f, 1.0f});
+  EndBatch(&BallBatch);
+
+  StartBatch(&PaddleBatch, Paddle.Texture, Projection);
+  DrawBatchRectangle(&PaddleBatch, Paddle.Position, Paddle.Dimensions, {1.0f, 1.0f, 1.0f, 1.0f});
+  EndBatch(&PaddleBatch);
+
+  Count++;
 }

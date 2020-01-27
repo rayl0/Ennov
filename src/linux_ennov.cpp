@@ -216,8 +216,7 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
         case DestroyNotify:
             State->Running = false;
         case KeyPress:
-            break;
-        case KeyRelease: {
+          {
             bool32 IsDown = (Event.xkey.type == KeyPress);
             KeySym Key = XLookupKeysym(&Event.xkey, 0);
 
@@ -259,6 +258,10 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
             }
             #endif //ENNOV_DEBUG
         } break;
+
+            break;
+        case KeyRelease: 
+            break;
         case ButtonPress:
             break;
         case ButtonRelease:
@@ -357,7 +360,7 @@ int main(int argc, char* argv[])
         X11ProcessEvents(&State, NewInput, &GameState);
 
         glClear(GL_COLOR_BUFFER_BIT);
-        glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
         GameUpdateAndRender(&GameState, NewInput);
 

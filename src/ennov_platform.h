@@ -11,7 +11,7 @@ extern "C" {
 #ifdef ENNOV_DEBUG
 #define Assert(Expression) {if(!(Expression)){ fprintf(stderr, "Assertion failed: %s\n", #Expression ); *(char*)0 = 1; }}
 #else
-#define Assert(Expression)
+#define Assert(Expression) 
 #endif 
     
 #define global_variable static
@@ -29,8 +29,22 @@ typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
 
+typedef int8 s8;
+typedef int16 s16;
+typedef int32 s32;
+typedef int64 s64;
+typedef bool32 b32;
+
+typedef uint8 u8;
+typedef uint16 u16;
+typedef uint32 u32;
+typedef uint64 u64;
+
 typedef float real32;
 typedef double real64;
+
+typedef real32 f32;
+typedef real64 f64;
 
 // TODO(Rajat): Might want to replace it in future
 

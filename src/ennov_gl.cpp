@@ -2,6 +2,7 @@
 #include "ennov_math.h" 
 #include "ennov_platform.h"
 #include "ennov.h"
+#include <memory.h>
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -12,6 +13,199 @@
 #else
 #define glCall(x) x;
 #endif
+
+#define MAX_BATCH_SPRITES 300
+
+struct batch
+{
+  u32 BatchId;
+  u32 IsInitialized;
+  u32 TextureId;
+  glm::mat4 Transform;
+  u32 DynamicVertexBuffer;
+  u32 VertexArray;
+  u32 ShaderProgram;
+  f32* VertexBufferData;
+  u32 VertexBufferSize;
+  u32 VertexBufferCurrentPos;
+};
+
+void StartBatch(batch* Batch, loaded_bitmap* Texture, glm::mat4 Transform)
+{
+    if(Batch->IsInitialized)
+        return;
+    if(Batch) {
+        glGenVertexArrays(1, &Batch->VertexArray);
+        glBindVertexArray(Batch->VertexArray);
+
+        glGenBuffers(1, &Batch->DynamicVertexBuffer);
+        glBindBuffer(GL_ARRAY_BUFFER, Batch->DynamicVertexBuffer);
+        glBufferData(GL_ARRAY_BUFFER, 100 * sizeof(float) * 48, NULL, GL_DYNAMIC_DRAW);
+
+        char* VertexShaderSource = {R"(
+             #version 330 core
+
+             layout(location = 0) in vec4 Position;
+             layout(location = 1) in vec4 Color;
+
+             out vec4 FragColor;
+             out vec2 TextureCoord;
+
+             uniform mat4 Projection;
+
+             void main()
+             {
+                 gl_Position = Projection * vec4(Position.xy, 0.0f, 1.0f);
+                 FragColor = Color;
+                 TextureCoord = Position.zw;
+             }
+        )"
+        };
+
+        char* FragmentShaderSource = {R"(
+             #version 330 core
+
+             out vec4 OutputColor;
+
+             in vec4 FragColor;
+             in vec2 TextureCoord;
+
+             uniform sampler2D Texture;
+
+             void main()
+             {
+               OutputColor = FragColor * texture(Texture, TextureCoord);
+             }
+        )"};
+
+        u32 VertexShader = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(VertexShader, 1, &VertexShaderSource, NULL);
+        glCompileShader(VertexShader);
+
+        u32 FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(FragmentShader, 1, &FragmentShaderSource, NULL);
+        glCompileShader(FragmentShader);
+
+        Batch->ShaderProgram = glCreateProgram();
+        glAttachShader(Batch->ShaderProgram, VertexShader);
+        glAttachShader(Batch->ShaderProgram, FragmentShader);
+        glLinkProgram(Batch->ShaderProgram);
+        glValidateProgram(Batch->ShaderProgram);
+
+        glDeleteShader(VertexShader);
+        glDeleteShader(FragmentShader);
+
+        glUseProgram(Batch->ShaderProgram);
+
+        u32 ProjectionLocation = glGetUniformLocation(Batch->ShaderProgram, "Projection");
+        glUniformMatrix4fv(ProjectionLocation, 1, GL_FALSE, glm::value_ptr(Transform));
+
+        glGenTextures(1, &Batch->TextureId);
+        glBindTexture(GL_TEXTURE_2D, Batch->TextureId);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+
+        u32 TextureFormat = GL_RGB;
+        u32 ImageFormat = GL_RGB;
+        if(Texture->Channels == 4) {
+            ImageFormat = GL_RGBA;
+            TextureFormat = GL_RGBA;
+        }
+        glTexImage2D(GL_TEXTURE_2D, 0, TextureFormat, Texture->Width, Texture->Height, 
+                              0, ImageFormat, GL_UNSIGNED_BYTE, Texture->Pixels);
+        glGenerateMipmap(Batch->TextureId);
+
+        Batch->IsInitialized = true;
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
+    else {
+
+    }
+}
+
+void DrawBatchRectangle(batch* Batch, vec2 Position, vec2 Dimension, vec4 Color)
+{
+    if(Batch) {
+        // TODO(rajat): Important map color values to 0.0f/1.0f
+
+        glm::mat4 Model = glm::mat4(1.0f);
+
+        Model = glm::translate(Model, glm::vec3(Position.x, Position.y, 0));
+        Model = glm::scale(Model, glm::vec3(Dimension.x, Dimension.y, 0));
+
+        glm::vec4 TransformVertexData[6] = {
+            {0.0f, 0.0f, 0.0f, 1.0f},
+            {0.0f, 1.0f, 0.0f, 1.0f},
+            {1.0f, 1.0f, 0.0f, 1.0f},
+
+            {1.0f, 1.0f, 0.0f, 1.0f},
+            {1.0f, 0.0f, 0.0f, 1.0f},
+            {0.0f, 0.0f, 0.0f, 1.0f}
+        };
+
+        for(int i = 0; i < 6; ++i) {
+            TransformVertexData[i] = Model * TransformVertexData[i];
+        }
+
+        vec2 TextureCord[6] = {
+            {0.0f, 0.0f},
+            {0.0f, 1.0f},
+            {1.0f, 1.0f},
+
+            {1.0f, 1.0f},
+            {1.0f, 0.0f},
+            {0.0f, 0.0f}
+        };
+
+        glm::vec4* tvd = TransformVertexData;
+        vec2* tc = TextureCord;
+
+        f32 VertexData[48] = {
+            tvd[0].x, tvd[0].y, tc[0].x, tc[0].y, Color.r, Color.g, Color.b, Color.a,
+            tvd[1].x, tvd[1].y, tc[1].x, tc[1].y, Color.r, Color.g, Color.b, Color.a,
+            tvd[2].x, tvd[2].y, tc[2].x, tc[2].y, Color.r, Color.g, Color.b, Color.a,
+            tvd[3].x, tvd[3].y, tc[3].x, tc[3].y, Color.r, Color.g, Color.b, Color.a,
+            tvd[4].x, tvd[4].y, tc[4].x, tc[4].y, Color.r, Color.g, Color.b, Color.a,
+            tvd[5].x, tvd[5].y, tc[5].x, tc[5].y, Color.r, Color.g, Color.b, Color.a,
+        };
+
+        for(int i = 0; i < 48; ++i) {
+            Batch->VertexBufferData[Batch->VertexBufferCurrentPos + i] = VertexData[i];
+        }
+
+        Batch->VertexBufferCurrentPos += 48;
+    }
+};
+
+void EndBatch(batch* Batch)
+{
+    if(Batch) {
+        glBindVertexArray(Batch->VertexArray);
+        glBindBuffer(GL_ARRAY_BUFFER, Batch->DynamicVertexBuffer);
+
+        void* BufferData = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+        memcpy(BufferData, Batch->VertexBufferData, sizeof(float) * Batch->VertexBufferCurrentPos);
+        Assert(glUnmapBuffer(GL_ARRAY_BUFFER) == GL_TRUE);
+        // NOTE(Rajat): Always set proper stride values otherwise go under a huge
+        // Debugging sesssion.
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 8, 0);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(sizeof(float) * 4));
+
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+
+        glBindTexture(GL_TEXTURE_2D, Batch->TextureId);
+        glActiveTexture(GL_TEXTURE0);
+
+        glUseProgram(Batch->ShaderProgram);
+        glDrawArrays(GL_TRIANGLES, 0, Batch->VertexBufferCurrentPos/8);
+        Batch->VertexBufferCurrentPos = 0;
+    }
+}
 
 struct opengl_rect_common
 {
@@ -167,15 +361,28 @@ void OpenGLDrawRectangle(rect_draw_attribs* DrawAttribs, uint32 DrawFlags)
         glUniform1ui(DrawFlagsLocation, DrawFlags);
         glUniform4fv(ColorLocation, 1, (const GLfloat*)&DrawAttribs->Color.data);
 
-        local_persist uint32 Count = 0;
-        if(DrawAttribs->Id == 0 && Count == 0) {
+        local_persist uint32 LastId = 700;
+        if(DrawAttribs->Id != LastId) {
         if(DrawFlags == RECTANGLE_FILL_TEXTURE || DrawFlags == RECTANGLE_FILL_TEXCOLOR) {
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, DrawAttribs->Texture->Width, DrawAttribs->Texture->Height, 
-                                    0, GL_RGB, GL_UNSIGNED_BYTE, DrawAttribs->Texture->Pixels);
+          uint32 TextureFormat;
+          uint32 ImageFormat;
+          printf("hello");
+
+          if(DrawAttribs->Texture->Channels == 4)
+            {
+              TextureFormat = GL_RGBA;
+              ImageFormat = GL_RGBA;
+            }
+          else {
+            TextureFormat = GL_RGB;
+            ImageFormat = GL_RGB;
+          }
+                glTexImage2D(GL_TEXTURE_2D, 0, TextureFormat, DrawAttribs->Texture->Width, DrawAttribs->Texture->Height, 
+                                    0, ImageFormat, GL_UNSIGNED_BYTE, DrawAttribs->Texture->Pixels);
                 glGenerateMipmap(RectData->Texture);
         }
         }
-        Count++;
+        LastId = DrawAttribs->Id;
         glUseProgram(RectData->ShaderProgram);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
         glBindVertexArray(0);
