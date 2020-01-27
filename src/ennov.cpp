@@ -21,7 +21,7 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
   // DrawRectangle(draw_attribs);
 
   local_persist rect_draw_attribs Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}, {1.0f, 1.0f, 0.0f, 1.0f}};
-  local_persist rect_draw_attribs Ball = {{Paddle.Dimensions.x / 2.0f, 500.0f - Paddle.Dimensions.y}, {20.0f, 20.0f}, {0.5f, 0.3f, 0.7f, 1.0f}};
+  local_persist rect_draw_attribs Ball = {{Paddle.Dimensions.x / 2.0f, 530.0f}, {20.0f, 20.0f}, {0.5f, 0.3f, 0.7f, 1.0f}};
   local_persist bool32 Fired = false;
   local_persist vec2 Direction = {4.0f, 4.0f};
   local_persist rect BallRect;
@@ -57,7 +57,7 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
   if(Ball.Position.x < 0.0f) Direction.x = -(Direction.x);
   if(Ball.Position.y > 600.0f) {
     Fired = false;
-    Ball.Position = {Paddle.Position.x + Paddle.Dimensions.x / 2.0f, 590.0f - Ball.Dimensions.y};
+    Ball.Position = {Paddle.Position.x + Paddle.Dimensions.x / 2.0f, 550.0f - Ball.Dimensions.y};
     Direction = { 4.0f, 4.0f};
     --(Lives);
     fprintf(stderr, "One Life deducted!\n");
@@ -70,7 +70,7 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
   if(RectangleColloide(PaddleRect, BallRect))
     {
       if(Fired)
-      Ball.Position = {Ball.Position.x, 580.0f - Ball.Dimensions.y};
+      Ball.Position = {Ball.Position.x, 540.0f - Ball.Dimensions.y};
       Direction.x = (Direction.x);
       Direction.y = -(Direction.y);
     }
