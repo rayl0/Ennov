@@ -324,7 +324,6 @@ int main(int argc, char* argv[])
     gladLoadGL();
 
     void* GameLibrary = NULL;
-    void (*Foo)(void);
 
     game_memory GameMemory = {};
     GameMemory.PermanentStorageSize = MEGABYTES_TO_BTYES(200);
@@ -333,11 +332,10 @@ int main(int argc, char* argv[])
     GameMemory.TransientStorage = Xpermalloc(GameMemory.TransientStorageSize);
     GameMemory.IsInitialized = false;
 
-    // GameLibrary = dlopen("./ennov.so", RTLD_NOW);
-    // if (!GameLibrary) {
-    //   fprintf(stderr, "%s\n", dlerror());
-    //   exit(EXIT_FAILURE);
-    // }
+    // TODO(Rajat): Not final game saving and loading system
+    int SaveFileHandle = open("./GameState.txt", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
+    read(SaveFileHandle, GameMemory.PermanentStorage, MEGABYTES_TO_BTYES(1));
+    close(SaveFileHandle);
 
     void (*GameUpdateAndRender)(game_memory* Memory, game_state *State, game_input *Input);
 
@@ -355,10 +353,11 @@ int main(int argc, char* argv[])
 
         glClear(GL_COLOR_BUFFER_BIT);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        GameLibrary = dlopen("./ennov.so", 258);
+        GameLibrary = dlopen("./ennov.so", RTLD_NOW);
         if (!GameLibrary) {
-            fprintf(stderr, "%s\n", dlerror());
-            exit(EXIT_FAILURE);
+          sleep(1);
+          GameLibrary = dlopen("./ennov.so", RTLD_NOW);
+          fprintf(stderr, "%s\n", dlerror());
         }
 
 
@@ -374,6 +373,11 @@ int main(int argc, char* argv[])
         NewInput = Temp;
         dlclose(GameLibrary);
     }
+
+    // TODO(Rajat): Not final save game functionality but the simplest and dumbest
+    SaveFileHandle = open("./GameState.txt", O_WRONLY, S_IRWXU | S_IRWXG | S_IRWXO);
+    write(SaveFileHandle, GameMemory.PermanentStorage, MEGABYTES_TO_BTYES(2));
+    close(SaveFileHandle);
 
     // NOTE(Rajat): Don't forget to free resources after use
     glXDestroyContext(State.Display_, State.Context);
