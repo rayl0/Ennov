@@ -63,7 +63,7 @@ typedef struct game_input
 {
     game_cursor_state Cursor;    
 	union {
-		game_button_state Buttons[10];
+		game_button_state Buttons[11];
 
 		// TODO(Rajat): Update them for the Standard gaming
 		struct 
@@ -74,6 +74,7 @@ typedef struct game_input
 			game_button_state MoveRight;
 
 			game_button_state Start;
+      game_button_state Terminate;
 			game_button_state Select;
 
 			game_button_state X;
@@ -92,6 +93,16 @@ typedef struct loaded_bitmap
     uint8* Pixels;
 }loaded_bitmap;
 
+typedef struct game_memory
+{
+  b32 IsInitialized;
+  void* PermanentStorage;
+  u32 PermanentStorageSize;
+
+  void* TransientStorage;
+  u32 TransientStorageSize;
+}game_memory;
+
 typedef struct game_interface
 {
 	loaded_bitmap*(*PlatformLoadBitmapFrom)(char* File);
@@ -107,8 +118,7 @@ typedef struct game_state
   }ContextAttribs;
 }game_state;
 
-
-void GameUpdateAndRender(game_state* State, game_input* Input);
+void GameUpdateAndRender(game_memory* Memory, game_state* State, game_input* Input);
 
 #ifdef __cplusplus
 }

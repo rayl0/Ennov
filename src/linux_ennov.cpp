@@ -186,6 +186,15 @@ ToggleMaximize(Display* display, Window window)
                     (XEvent *)&Event);
 }
 
+internal void
+X11ProcessButton(game_button_state* NewState, bool IsDown)
+{
+  if(NewState->EndedDown != IsDown) {
+    NewState->EndedDown = IsDown;
+    ++(NewState->Repeat);
+  }
+}
+
 internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_state* GameState)
 {
 
@@ -210,8 +219,10 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
             break;
             break;
         case ClientMessage:
-            if (Event.xclient.data.l[0] == State->AtomWmDeleteWindow)
+            if (Event.xclient.data.l[0] == State->AtomWmDeleteWindow) {
                 State->Running = false;
+                X11ProcessButton(&NewInput->Button.Terminate, true);
+            }
             break;
         case DestroyNotify:
             State->Running = false;
@@ -221,40 +232,30 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
             KeySym Key = XLookupKeysym(&Event.xkey, 0);
 
             if (Key == XK_s) {
-                NewInput->Button.S.EndedDown = true;
-                ++(NewInput->Button.S.Repeat);
+                X11ProcessButton(&NewInput->Button.S, IsDown);
             }
             if (Key == XK_a) {
-                NewInput->Button.A.EndedDown = true;
-                ++(NewInput->Button.A.Repeat);
-            }
-            if (Key == XK_Tab) {
-                NewInput->Button.Start.EndedDown = true;
-                ++(NewInput->Button.Start.Repeat);
+                X11ProcessButton(&NewInput->Button.A, IsDown);
             }
             if (Key == XK_Down) {
-                NewInput->Button.MoveDown.EndedDown = true;
-                ++(NewInput->Button.Start.Repeat);
+                X11ProcessButton(&NewInput->Button.MoveDown, IsDown);
             }
             if (Key == XK_Up) {
-                NewInput->Button.MoveUp.EndedDown = true;
-                ++(NewInput->Button.Start.Repeat);
+                X11ProcessButton(&NewInput->Button.MoveUp, IsDown);
             }
             if (Key == XK_Left) {
-                NewInput->Button.MoveLeft.EndedDown = true;
-                ++(NewInput->Button.Start.Repeat);
+                X11ProcessButton(&NewInput->Button.MoveLeft, IsDown);
             }
             if (Key == XK_Right) {
-                NewInput->Button.MoveRight.EndedDown = true;
-                ++(NewInput->Button.Start.Repeat);
+                X11ProcessButton(&NewInput->Button.MoveRight, IsDown);
             }
             if(Key == XK_space) {
-              NewInput->Button.Start.EndedDown = true;
-              ++(NewInput->Button.Start.Repeat);
+                X11ProcessButton(&NewInput->Button.Start, IsDown);
             }
             #ifdef ENNOV_DEBUG
             if (Key == XK_Tab) {
                 State->Running = false;
+                X11ProcessButton(&NewInput->Button.Terminate, IsDown);
             }
             #endif //ENNOV_DEBUG
         } break;
@@ -322,30 +323,23 @@ int main(int argc, char* argv[])
     // NOTE(Rajat): Always load OpenGL after creating a context and making it current
     gladLoadGL();
 
-    glm::mat4 Transform = glm::ortho(0.0f, 600.0f, 400.0f, 0.0f, -1.0f, 1.0f);
-
-    float* MatrixArray = glm::value_ptr(Transform);
-    for(int i = 0; i < 16; ++i)
-    {
-        fprintf(stderr, "Value: %f ", MatrixArray[i]);
-        if(i == 3 || i == 7 || i == 11 || i == 15)
-        {
-            fprintf(stderr, "\n");
-        }
-    }
-
     void* GameLibrary = NULL;
     void (*Foo)(void);
 
-    char* GameMemory = Xpermalloc(MEGABYTES_TO_BTYES(200));
+    game_memory GameMemory = {};
+    GameMemory.PermanentStorageSize = MEGABYTES_TO_BTYES(200);
+    GameMemory.TransientStorageSize = MEGABYTES_TO_BTYES(100);
+    GameMemory.PermanentStorage = Xpermalloc(GameMemory.PermanentStorageSize);
+    GameMemory.TransientStorage = Xpermalloc(GameMemory.TransientStorageSize);
+    GameMemory.IsInitialized = false;
 
-    GameLibrary = dlopen("./ennov.so", RTLD_LAZY);
-    if (!GameLibrary) {
-        fprintf(stderr, "%s\n", dlerror());
-        exit(EXIT_FAILURE);
-    }
-    void (*GameUpdateAndRender)(game_state *State, game_input *Input) = (void (*)(game_state *State, game_input *Input)) 
-                                                                         dlsym(GameLibrary, "GameUpdateAndRender");
+    // GameLibrary = dlopen("./ennov.so", RTLD_NOW);
+    // if (!GameLibrary) {
+    //   fprintf(stderr, "%s\n", dlerror());
+    //   exit(EXIT_FAILURE);
+    // }
+
+    void (*GameUpdateAndRender)(game_memory* Memory, game_state *State, game_input *Input);
 
     game_input Input[2] = {};
     game_input* OldInput = &Input[0];
@@ -361,10 +355,24 @@ int main(int argc, char* argv[])
 
         glClear(GL_COLOR_BUFFER_BIT);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        GameLibrary = dlopen("./ennov.so", 258);
+        if (!GameLibrary) {
+            fprintf(stderr, "%s\n", dlerror());
+            exit(EXIT_FAILURE);
+        }
 
-        GameUpdateAndRender(&GameState, NewInput);
+
+        GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input))dlsym(GameLibrary, "GameUpdateAndRender");
+
+        GameUpdateAndRender(&GameMemory, &GameState, NewInput);
 
         glXSwapBuffers(State.Display_, State.Window_);
+
+        game_input* Temp;
+        Temp = OldInput;
+        OldInput = NewInput;
+        NewInput = Temp;
+        dlclose(GameLibrary);
     }
 
     // NOTE(Rajat): Don't forget to free resources after use

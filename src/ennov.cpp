@@ -10,9 +10,36 @@
 // TODO(Rajat): Implement Rand number generator
 // TODO(Rajat): Implement Matrix and transformation methods
 
-global_variable int Count = 0; // Counter, will be removed soon
+enum breakout_batch_id
+{
+    BackgroundBatch,
+    PaddleBatch,
+    BallBatch,
+    TileBatch
+};
 
-void GameUpdateAndRender(game_state *State, game_input *Input)
+struct breakout_game_state
+{
+    loaded_bitmap* BackgroundBitmap;
+    loaded_bitmap* PaddleBitmap;
+    loaded_bitmap* BallBitmap;
+    loaded_bitmap* TileBitmap;
+    glm::mat4 Projection; // TODO(Rajat): Replace glm fast!
+    batch DrawBatchs[10];
+    b32 Fired;
+    vec2 Direction;
+    rect Ball;
+    rect Paddle;
+    u32 Level[32];
+    s32 Lives;
+    b32 IsInitialized;
+    b32 IsPaused;
+    f32 TransientBatchBuffer[2048];
+    u32 TransientSectionPos[10];
+    u32 TransientSectionSize;
+};
+
+void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Input)
 {
   // NOTE(Rajat): Never do assertions within a loop increment
   // Assert(Count < 1); 
@@ -20,145 +47,161 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
   //  OpenGLInitContext({State->ContextAttribs.Width, State->ContextAttribs.Height});
   // DrawRectangle(draw_attribs);
 
-  local_persist rect_draw_attribs Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}, {1.0f, 1.0f, 0.0f, 1.0f}};
-  local_persist rect_draw_attribs Ball = {{Paddle.Dimensions.x / 2.0f, 530.0f}, {20.0f, 20.0f}, {0.5f, 0.3f, 0.7f, 1.0f}};
-  local_persist bool32 Fired = false;
-  local_persist vec2 Direction = {4.0f, 4.0f};
-  local_persist rect BallRect;
-  local_persist rect PaddleRect;
-  local_persist rect_draw_attribs TileAttrib;
-  local_persist uint32 Lives = 3;
+    gladLoadGL(); 
 
-  BallRect = {Ball.Position, Ball.Dimensions};
-  PaddleRect = {Paddle.Position, Paddle.Dimensions};
+  breakout_game_state* CurrentState = (breakout_game_state*)Memory->PermanentStorage;
+  if(!Memory->IsInitialized) {
+      CurrentState->IsInitialized = false;
+      Memory->IsInitialized = true;
+  }
+  if(!CurrentState->IsInitialized) {
 
-  local_persist bool32 IsPaused = false;
+      // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
+      CurrentState->Paddle = {{200.0f, 550.0f}, {100.0f, 50.0f}};
+      CurrentState->Ball = {{CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f}, {20.0f, 20.0f}};
+      CurrentState->Direction = {4.0f, 4.0f};
+
+      CurrentState->Fired = false;
+      CurrentState->Lives = 3;
+
+      CurrentState->IsInitialized = true;
+      CurrentState->IsPaused = false;
+
+      CurrentState->BackgroundBitmap = State->Interface.PlatformLoadBitmapFrom("./background.jpg");
+      CurrentState->BallBitmap = State->Interface.PlatformLoadBitmapFrom("./background.jpg");
+      CurrentState->PaddleBitmap = State->Interface.PlatformLoadBitmapFrom("./paddle.png");
+      CurrentState->TileBitmap = State->Interface.PlatformLoadBitmapFrom("./block-textures.png");
+
+      CurrentState->TransientSectionSize = 256;
+      CurrentState->Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f); // TODO(Rajat): Update projection with window size change!
+
+      u32 TileMap[32] = {
+          1, 2, 3, 1, 4, 1, 2, 3,
+          5, 3, 5, 1, 3, 5, 4, 1,
+          4, 1, 0, 0, 0, 1, 0, 0,
+          0, 0, 0, 0, 4, 3, 0, 0
+      };
+
+      for(int i = 0; i < 32; ++i) {
+          CurrentState->Level[i] =  TileMap[i];
+      }
+
+      for(int i = 0; i < 10; ++i) {
+          CurrentState->DrawBatchs[i].Id = i;
+          CurrentState->DrawBatchs[i].VertexBufferSize = CurrentState->TransientSectionSize;
+          CurrentState->DrawBatchs[i].VertexBufferData = &CurrentState->TransientBatchBuffer[i * CurrentState->TransientSectionSize];
+          CurrentState->DrawBatchs[i].IsInitialized = false;
+      }
+  }
+
+  rect* Ball = &CurrentState->Ball;
+  rect* Paddle = &CurrentState->Paddle;
+  vec2* Direction = &CurrentState->Direction;
+  batch* Batch = CurrentState->DrawBatchs;
+  
   if(Input->Button.S.EndedDown) {
-    if(IsPaused)
+    if(CurrentState->IsPaused)
       {
         fprintf(stderr, "Resuming the game\n");
-        IsPaused = false;
+        CurrentState->IsPaused = false;
       }
     else {
        fprintf(stderr, "Pausing the game\n");
-       IsPaused = true;
+       CurrentState->IsPaused = true;
     }
   }
-  if(!IsPaused) {
+  if(!CurrentState->IsPaused) {
   if(Input->Button.Start.EndedDown) {
-    Fired = true;
+    CurrentState->Fired = true;
   }
-  if(Fired) {
-    Ball.Position.y -= Direction.y;
-    Ball.Position.x += Direction.x;
+  if(CurrentState->Fired) {
+    Ball->Pos.y -= Direction->y;
+    Ball->Pos.x += Direction->x;
   }
-  if(Ball.Position.x > 790.0f) Direction.x = -(Direction.x);
-  if(Ball.Position.y < 0.0f) Direction.y = -(Direction.y);
-  if(Ball.Position.x < 0.0f) Direction.x = -(Direction.x);
-  if(Ball.Position.y > 600.0f) {
-    Fired = false;
-    Ball.Position = {Paddle.Position.x + Paddle.Dimensions.x / 2.0f, 550.0f - Ball.Dimensions.y};
-    Direction = { 4.0f, 4.0f};
-    --(Lives);
+  if(Ball->Pos.x > 790.0f) Direction->x = -(Direction->x);
+  if(Ball->Pos.y < 0.0f) Direction->y = -(Direction->y);
+  if(Ball->Pos.x < 0.0f) Direction->x = -(Direction->x);
+  if(Ball->Pos.y > 600.0f) {
+    CurrentState->Fired = false;
+    Ball->Pos = {Paddle->Pos.x + Paddle->Dimensions.x / 2.0f, 550.0f - Ball->Dimensions.y};
+    *Direction = { 4.0f, 4.0f};
+    --(CurrentState->Lives);
     fprintf(stderr, "One Life deducted!\n");
-    if(Lives == 0)
+    if(CurrentState->Lives == 0)
       {
         fprintf(stderr, "You Lose!\n");
         exit(EXIT_FAILURE);
       }
   }
-  if(RectangleColloide(PaddleRect, BallRect))
+  if(RectangleColloide(*Paddle, *Ball))
     {
-      if(Fired)
-      Ball.Position = {Ball.Position.x, 540.0f - Ball.Dimensions.y};
-      Direction.x = (Direction.x);
-      Direction.y = -(Direction.y);
+      if(CurrentState->Fired)
+      Ball->Pos = {Ball->Pos.x, 540.0f - Ball->Dimensions.y};
+      Direction->x = (Direction->x);
+      Direction->y = -(Direction->y);
     }
   if(Input->Button.MoveRight.EndedDown)
     {
-      Paddle.Position.x += 64.0f;
-      if(!Fired)
-        Ball.Position.x += 64.0f;
-      if(Paddle.Position.x >= 700.0f)
-        Paddle.Position.x = 700.0f;
+      Paddle->Pos.x += 64.0f;
+      if(!CurrentState->Fired)
+        Ball->Pos.x += 64.0f;
+      if(Paddle->Pos.x >= 700.0f)
+        Paddle->Pos.x = 700.0f;
     }
   if(Input->Button.MoveLeft.EndedDown)
     {
-      Paddle.Position.x -= 64.0f;
-      if(!Fired)
-        Ball.Position.x -= 64.0f;
-      if(Paddle.Position.x <= 0.0f)
-        Paddle.Position.x = 0.0f;
+      Paddle->Pos.x -= 64.0f;
+      if(!CurrentState->Fired)
+        Ball->Pos.x -= 64.0f;
+      if(Paddle->Pos.x <= 0.0f)
+        Paddle->Pos.x = 0.0f;
     }
   }
 
-  if(Count == 0)
-    {
-
-      gladLoadGL();
-      Paddle.Id = 1;
-      TileAttrib.Texture = State->Interface.PlatformLoadBitmapFrom("./block-textures.png");
-      Paddle.Texture = State->Interface.PlatformLoadBitmapFrom("./paddle.png");
-    }
-
-  local_persist uint8 TileMap[4][8] = {
-      {1, 2, 3, 1, 4, 1, 2, 3},
-      {5, 3, 5, 1, 3, 5, 4, 1},
-      {4, 1, 0, 0, 0, 1, 0, 0},
-      {0, 0, 0, 0, 4, 3, 0, 0},
-  };
-
-  uint32 Id = 0;
   uint32 NumActieTiles = 0;
 
-  local_persist batch Batch = {};
-  if(Count == 0) {
-    local_persist f32 Buffer[1024];
-    Batch.BatchId = 0;
-    Batch.VertexBufferData = Buffer;
-    Batch.IsInitialized = false;
-  }
+  StartBatch(&Batch[BackgroundBatch], CurrentState->BackgroundBitmap, CurrentState->Projection);
+  DrawBatchRectangle(&Batch[BackgroundBatch], {0, 0}, {(f32)CurrentState->BackgroundBitmap->Width, (f32)CurrentState->BackgroundBitmap->Height}, {1.0f, 1.0f, 1.0f, 1.0f});
+  EndBatch(&Batch[BackgroundBatch]);
 
-  local_persist glm::mat4 Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
+  StartBatch(&Batch[TileBatch], CurrentState->TileBitmap, CurrentState->Projection);
 
-  StartBatch(&Batch, TileAttrib.Texture, Projection);
- 
+  u32* Level[8] = (u32**)CurrentState->Level;
   for(int i = 0; i < 4; ++i)
   {
-      for(int j = 0; j < 8; ++j)
-      {
-          TileAttrib.Id = Id;
-          TileAttrib.Position = {j * 100.0f, i * 50.0f};
-          TileAttrib.Dimensions = {100.0f, 50.0f};
-          if(TileMap[i][j] == 0)
+    for(int j = 0; j < 8; ++j) {
+          vec2 Position = {j * 100.0f, i * 50.0f};
+          vec2 Dimensions = {100.0f, 50.0f};
+          vec4 Color = {};
+          if(Level[i][j] == 0)
             continue;
-          else if(TileMap[i][j] == 1)
-              TileAttrib.Color = {0.0f, 0.5f, 0.5f, 1.0f};
-          else if(TileMap[i][j] == 2)
-              TileAttrib.Color = {1.0f, 0.3f, 0.2f, 1.0f};
-          else if(TileMap[i][j] == 3)
-              TileAttrib.Color = {0.0f, 0.7f, 0.9f, 1.0f};
-          else if(TileMap[i][j] == 4)
-              TileAttrib.Color = {0.0f, 0.3f, 0.9f, 1.0f};
-          else if(TileMap[i][j] == 5)
-              TileAttrib.Color = {1.0f, 0.7f, 0.3f, 1.0f};
-          DrawBatchRectangle(&Batch, TileAttrib.Position, TileAttrib.Dimensions, TileAttrib.Color);
-          if(RectangleColloide({TileAttrib.Position, TileAttrib.Dimensions}, BallRect))
+          else if(Level[i][j] == 1)
+              Color = {0.0f, 0.5f, 0.5f, 1.0f};
+          else if(Level[i][j] == 2)
+              Color = {1.0f, 0.3f, 0.2f, 1.0f};
+          else if(Level[i][j] == 3)
+              Color = {0.0f, 0.7f, 0.9f, 1.0f};
+          else if(Level[i][j] == 4)
+              Color = {0.0f, 0.3f, 0.9f, 1.0f};
+          else if(Level[i][j] == 5)
+              Color = {1.0f, 0.7f, 0.3f, 1.0f};
+          DrawBatchRectangle(&Batch[TileBatch], Position, Dimensions, Color);
+          if(RectangleColloide({Position, Dimensions}, CurrentState->Ball))
             {
-              fprintf(stderr, "Tile Colloide %i\n", TileMap[i][j]);
-              TileMap[i][j] = 0;
-              Direction.x = Direction.x;
-              Direction.y = -Direction.y;
+              fprintf(stderr, "Tile Colloide %i\n", Level[i]);
+              Level[i] = 0;
+              Direction->x = Direction->x;
+              Direction->y = -Direction->y;
             }
 
-          if(TileMap[i][j] != 0)
+          if(Level[i] != 0)
             {
               NumActieTiles++;
             }
-      }
+    }
   }
 
-  EndBatch(&Batch);
+  EndBatch(&Batch[TileBatch]);
 
   if(NumActieTiles == 0)
     {
@@ -166,28 +209,16 @@ void GameUpdateAndRender(game_state *State, game_input *Input)
       exit(EXIT_SUCCESS);
     }
 
+  StartBatch(&Batch[BallBatch], CurrentState->BallBitmap, CurrentState->Projection);
+  DrawBatchRectangle(&Batch[BallBatch], Ball->Pos, Ball->Dimensions, {1.0f, 1.0f, 1.0f, 1.0f});
+  EndBatch(&Batch[BallBatch]);
 
-  local_persist batch BallBatch = {};
-  local_persist batch PaddleBatch = {};
-  local_persist f32 VertexBufferData[100];
+  StartBatch(&Batch[PaddleBatch], CurrentState->PaddleBitmap, CurrentState->Projection);
+  DrawBatchRectangle(&Batch[PaddleBatch], Paddle->Pos, Paddle->Dimensions, {1.0f, 1.0f, 1.0f, 1.0f});
+  EndBatch(&Batch[PaddleBatch]);
 
-  if(Count == 0) {
-    BallBatch.BatchId = 1;
-    BallBatch.VertexBufferData = VertexBufferData;
-    BallBatch.VertexBufferSize = 100;
-    BallBatch.IsInitialized = false;
-    PaddleBatch.BatchId = 2;
-    PaddleBatch.VertexBufferData = (f32*)malloc(100);
-    PaddleBatch.IsInitialized = false;
-  }
-
-  StartBatch(&BallBatch, TileAttrib.Texture, Projection);
-  DrawBatchRectangle(&BallBatch, Ball.Position, Ball.Dimensions, {1.0f, 1.0f, 1.0f, 1.0f});
-  EndBatch(&BallBatch);
-
-  StartBatch(&PaddleBatch, Paddle.Texture, Projection);
-  DrawBatchRectangle(&PaddleBatch, Paddle.Position, Paddle.Dimensions, {1.0f, 1.0f, 1.0f, 1.0f});
-  EndBatch(&PaddleBatch);
-
-  Count++;
+  if(Input->Button.Terminate.EndedDown)
+    {
+        fprintf(stderr, "Hell");
+    }
 }

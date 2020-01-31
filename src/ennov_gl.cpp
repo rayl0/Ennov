@@ -18,7 +18,7 @@
 
 struct batch
 {
-  u32 BatchId;
+  u32 Id;
   u32 IsInitialized;
   u32 TextureId;
   glm::mat4 Transform;
