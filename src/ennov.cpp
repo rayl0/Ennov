@@ -9,6 +9,9 @@
 
 // TODO(Rajat): Implement Rand number generator
 // TODO(Rajat): Implement Matrix and transformation methods
+// TODO(Rajat): Don't start a new project after coming back on
+// this after march exams
+// TODO(Rajat): Setup EditorConfig file
 
 enum breakout_batch_id
 {
@@ -56,7 +59,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
       // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
     if(!CurrentState->HaveLoadState) {
       CurrentState->Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}};
-      CurrentState->Ball = {{CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f}, {20.0f, 20.0f}};
+      CurrentState->Ball = {{CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f}, {10.0f, 10.0f}};
       CurrentState->Direction = {4.0f, 4.0f};
 
       CurrentState->Fired = false;
@@ -208,7 +211,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
   if(NumActieTiles == 0)
     {
       fprintf(stderr, "You Win!\n");
-      exit(EXIT_SUCCESS);
+      Memory->IsInitialized = false;
+      CurrentState->HaveLoadState = false;
     }
 
   StartBatch(&Batch[BallBatch], CurrentState->BallBitmap, CurrentState->Projection);
