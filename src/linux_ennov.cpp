@@ -1,6 +1,7 @@
 // TODO(Rajat):
 /*
-  --Toggle Maximize
+  --Multithreading
+  --Toggle Maximize and switching b/w modes
   --Text Rendering
   --Tilemap Rendering
   --GJK Collision Detection
@@ -12,10 +13,13 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xresource.h>
+#include <X11/Xatom.h>
 #include <X11/keysymdef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <pthread.h>
 
 #include <sys/time.h>
 #include <pthread.h>
@@ -51,6 +55,29 @@ struct x11_state {
     Atom AtomWmDeleteWindow;
     bool32 Running;
 };
+
+internal Status
+X11ToggleFullScreen(Display* Display_, Window Window_)
+{
+    XClientMessageEvent Event = {};
+    Atom WmState = XInternAtom(Display_, "_NET_WM_STATE", False);
+    Atom FullScreenToggle  =  XInternAtom(Display_, "_NET_WM_STATE_FULLSCREEN", False);
+
+    if(WmState == None) return 0;
+
+    Event.type = ClientMessage;
+    Event.format = 32;
+    Event.window = Window_;
+    Event.message_type = WmState;
+    Event.data.l[0] = 2; // _NET_WM_STATE_TOGGLE 2 according to spec; Not defined in my headers
+    Event.data.l[1] = FullScreenToggle;
+    Event.data.l[3] = 0l;
+
+    return XSendEvent(Display_, DefaultRootWindow(Display_), False,
+                      SubstructureNotifyMask,
+                      (XEvent *)&Event);
+
+}
 
 internal GLXFBConfig X11GetFrameBufferConfig(x11_state* State)
 {
@@ -108,7 +135,7 @@ internal void X11Init(x11_state* State)
     GLXFBConfig FBConfig = X11GetFrameBufferConfig(State);
 
     XVisualInfo* Visual = glXGetVisualFromFBConfig(State->Display_, FBConfig);
-   
+
     XSetWindowAttributes WindowAttribs;
     WindowAttribs.border_pixel = BlackPixel(State->Display_, State->ScreenID);
     WindowAttribs.background_pixel = WhitePixel(State->Display_, State->ScreenID);
@@ -261,7 +288,7 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
         } break;
 
             break;
-        case KeyRelease: 
+        case KeyRelease:
             break;
         case ButtonPress:
             break;
@@ -277,7 +304,7 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
             NewInput->Cursor.Y = -100.0f;
         } break;
         case MotionNotify: {
-            XMotionEvent MouseMove = Event.xmotion;                       
+            XMotionEvent MouseMove = Event.xmotion;
             NewInput->Cursor.X = (real32)MouseMove.x;
             NewInput->Cursor.Y = (real32)MouseMove.y;
         }
@@ -286,7 +313,8 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
     }
 }
 
-loaded_bitmap* PlatformLoadBitmapFrom(char* file)
+internal loaded_bitmap*
+PlatformLoadBitmapFrom(char* file)
 {
     int TexWidth, TexHeight, Channels;
     uint8* Pixels = stbi_load(file, &TexWidth, &TexHeight, &Channels, 0);
@@ -306,7 +334,7 @@ loaded_bitmap* PlatformLoadBitmapFrom(char* file)
 }
 
 
-/* struct game_memory 
+/* struct game_memory
  * {
  *     uint32 Size;
  *     void* Data;
@@ -314,11 +342,45 @@ loaded_bitmap* PlatformLoadBitmapFrom(char* file)
  * };
  */
 
-int main(int argc, char* argv[])
+struct thread_info
 {
+    pthread_t ThreadId;
+    u32 ThreadIndex;
+    char* StringToPrint;
+};
+
+
+// NOTE(rajat): Adopt style used in this function and leave everything else
+// NOTE(rajat): Already configured spacemacs to use this style
+internal void*
+ThreadFunc(void* Arg)
+{
+    thread_info* Info = (thread_info*)Arg;
+    for(;;)
+    {
+        fprintf(stderr, "Thread %i: %s\n", Info->ThreadIndex, Info->StringToPrint);
+    }
+    return NULL;
+}
+
+int
+main(int argc, char* argv[])
+{
+    thread_info WorkerThread[3] = {};
+    WorkerThread[0].StringToPrint = "Hello from thread";
+    WorkerThread[1].StringToPrint = "Lol!";
+    WorkerThread[2].StringToPrint = "Sorry!";
+    WorkerThread[0].ThreadIndex = 0;
+    WorkerThread[1].ThreadIndex = 1;
+    WorkerThread[2].ThreadIndex = 2;
+    pthread_create(&WorkerThread[0].ThreadId, NULL, ThreadFunc, &WorkerThread[0]);
+    pthread_create(&WorkerThread[1].ThreadId, NULL, ThreadFunc, &WorkerThread[1]);
+    pthread_create(&WorkerThread[2].ThreadId, NULL, ThreadFunc, &WorkerThread[2]);
+
     x11_state State = {};
 
     X11Init(&State);
+    // X11ToggleFullScreen(State.Display_, State.Window_);
 
     // NOTE(Rajat): Always load OpenGL after creating a context and making it current
     gladLoadGL();

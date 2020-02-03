@@ -14,7 +14,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 set_property(TARGET ennov PROPERTY PREFIX "")
 endif()
 
-target_link_libraries(linux_ennov PUBLIC X11 GL GLX dl glm::glm)
+target_link_libraries(linux_ennov PUBLIC X11 GL GLX pthread dl glm::glm)
 target_include_directories(linux_ennov PUBLIC src/)
 target_compile_options(linux_ennov PUBLIC -DENNOV_DEBUG)
 target_compile_features(linux_ennov PUBLIC c_std_99 cxx_std_11)
