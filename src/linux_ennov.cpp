@@ -1,6 +1,7 @@
 // TODO(Rajat):
 /*
-  --Multithreading
+  --2D Renderer
+  --Multithreaded Asset Loading
   --Toggle Maximize and switching b/w modes
   --Text Rendering
   --Tilemap Rendering
@@ -8,11 +9,9 @@
   --Cleaning Up Platform layer
   --Fullscreen Toggle
   --Input System Cleaning
-  --2D Renderer
  */
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <X11/Xresource.h>
 #include <X11/Xatom.h>
 #include <X11/keysymdef.h>
 #include <stdint.h>
@@ -22,6 +21,7 @@
 #include <pthread.h>
 
 #include <sys/time.h>
+#include <sys/mman.h>
 #include <pthread.h>
 #include <unistd.h>
 
@@ -373,9 +373,9 @@ main(int argc, char* argv[])
     WorkerThread[0].ThreadIndex = 0;
     WorkerThread[1].ThreadIndex = 1;
     WorkerThread[2].ThreadIndex = 2;
-    pthread_create(&WorkerThread[0].ThreadId, NULL, ThreadFunc, &WorkerThread[0]);
-    pthread_create(&WorkerThread[1].ThreadId, NULL, ThreadFunc, &WorkerThread[1]);
-    pthread_create(&WorkerThread[2].ThreadId, NULL, ThreadFunc, &WorkerThread[2]);
+    // pthread_create(&WorkerThread[0].ThreadId, NULL, ThreadFunc, &WorkerThread[0]);
+    // pthread_create(&WorkerThread[1].ThreadId, NULL, ThreadFunc, &WorkerThread[1]);
+    // pthread_create(&WorkerThread[2].ThreadId, NULL, ThreadFunc, &WorkerThread[2]);
 
     x11_state State = {};
 
@@ -387,11 +387,16 @@ main(int argc, char* argv[])
 
     void* GameLibrary = NULL;
 
+    // TODO(Rajat): Query addresses for virtual allocating
     game_memory GameMemory = {};
-    GameMemory.PermanentStorageSize = MEGABYTES_TO_BTYES(200);
-    GameMemory.TransientStorageSize = MEGABYTES_TO_BTYES(100);
-    GameMemory.PermanentStorage = Xpermalloc(GameMemory.PermanentStorageSize);
-    GameMemory.TransientStorage = Xpermalloc(GameMemory.TransientStorageSize);
+    GameMemory.PermanentStorageSize = MEGABYTES_TO_BTYES(512);
+    GameMemory.TransientStorageSize = MEGABYTES_TO_BTYES(256);
+    GameMemory.PermanentStorage = mmap(0, GameMemory.PermanentStorageSize,
+                                       PROT_READ|PROT_WRITE|PROT_EXEC,
+                                       MAP_ANON|MAP_PRIVATE, 0, 0);
+    GameMemory.TransientStorage = mmap(0, GameMemory.TransientStorageSize,
+                                       PROT_READ|PROT_WRITE|PROT_EXEC,
+                                       MAP_ANON|MAP_PRIVATE, 0, 0);
     GameMemory.IsInitialized = false;
 
     // TODO(Rajat): Not final game saving and loading system
@@ -442,6 +447,9 @@ main(int argc, char* argv[])
     close(SaveFileHandle);
 
     // NOTE(Rajat): Don't forget to free resources after use
+    munmap(GameMemory.PermanentStorage, GameMemory.PermanentStorageSize);
+    munmap(GameMemory.TransientStorage, GameMemory.TransientStorageSize);
+
     glXDestroyContext(State.Display_, State.Context);
     XFreeColormap(State.Display_, State.WindowColormap);
     XDestroyWindow(State.Display_, State.Window_);

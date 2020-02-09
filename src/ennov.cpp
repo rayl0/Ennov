@@ -5,7 +5,23 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "ennov_math.h"
-#include "ennov_gl.cpp"
+#include "ennov_gl.cc"
+
+void InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size)
+{
+    Areana->BaseAddress = BaseAddress;
+    Areana->Size = Size;
+    Areana->Used = 0;
+}
+
+void* PushStruct_(game_areana* Areana, memory_index Size)
+{
+    Assert(Areana->Used + Size <= Areana->Size);
+    void* NewStruct = (Areana->BaseAddress + Areana->Used);
+    Areana->Used += Size;
+    return NewStruct;
+}
+
 
 // TODO(Rajat): Implement Rand number generator
 // TODO(Rajat): Implement Matrix and transformation methods
@@ -30,8 +46,9 @@ struct breakout_game_state
     loaded_bitmap* PaddleBitmap;
     loaded_bitmap* BallBitmap;
     loaded_bitmap* TileBitmap;
+    texture Textures[4];
     glm::mat4 Projection; // TODO(Rajat): Replace glm fast!
-    batch DrawBatchs[10];
+    renderer_data RendererData;
     b32 Fired;
     vec2 Direction;
     rect Ball;
@@ -39,9 +56,6 @@ struct breakout_game_state
     u32 Level[32];
     s32 Lives;
     b32 IsPaused;
-    f32 TransientBatchBuffer[2048];
-    u32 TransientSectionPos[10];
-    u32 TransientSectionSize;
 };
 
 void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Input)
@@ -57,6 +71,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     breakout_game_state* CurrentState = (breakout_game_state*)Memory->PermanentStorage;
     if(!Memory->IsInitialized) {
 
+        InitializeAreana(&State->GameStorage, Memory->PermanentStorage + sizeof(CurrentState), Memory->PermanentStorageSize - sizeof(CurrentState));
+        InitializeAreana(&State->ScratchStorage, Memory->TransientStorage, Memory->TransientStorageSize);
         // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
         if(!CurrentState->HaveLoadState) {
             CurrentState->Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}};
@@ -80,21 +96,21 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
                 CurrentState->Level[i] =  TileMap[i];
             }
         }
-        CurrentState->TransientSectionSize = 256;
 
-        for(int i = 0; i < 10; ++i) {
-            CurrentState->DrawBatchs[i].Id = i;
-            CurrentState->DrawBatchs[i].VertexBufferSize = CurrentState->TransientSectionSize;
-            CurrentState->DrawBatchs[i].VertexBufferData = &CurrentState->TransientBatchBuffer[i * CurrentState->TransientSectionSize];
-            CurrentState->DrawBatchs[i].IsInitialized = false;
-        }
+        CurrentState->RendererData = {};
 
+        CurrentState->RendererData.Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f); // TODO(Rajat): Update projection with window size change!
+        InitRenderer(&CurrentState->RendererData, &State->GameStorage);
         CurrentState->BackgroundBitmap = State->Interface.PlatformLoadBitmapFrom("./background.jpg");
         CurrentState->BallBitmap = State->Interface.PlatformLoadBitmapFrom("./background.jpg");
         CurrentState->PaddleBitmap = State->Interface.PlatformLoadBitmapFrom("./paddle.png");
-        CurrentState->TileBitmap = State->Interface.PlatformLoadBitmapFrom("./block-textures.png");
+        CurrentState->TileBitmap = State->Interface.PlatformLoadBitmapFrom("./block.png");
 
-        CurrentState->Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f); // TODO(Rajat): Update projection with window size change!
+        CurrentState->Textures[0] = CreateTexture(CurrentState->BackgroundBitmap);
+        CurrentState->Textures[1] = CreateTexture(CurrentState->TileBitmap);
+        CurrentState->Textures[2] = CreateTexture(CurrentState->PaddleBitmap);
+
+        CurrentState->RendererData.Projection = CurrentState->Projection;
 
         Memory->IsInitialized = true;
     }
@@ -102,7 +118,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     rect* Ball = &CurrentState->Ball;
     rect* Paddle = &CurrentState->Paddle;
     vec2* Direction = &CurrentState->Direction;
-    batch* Batch = CurrentState->DrawBatchs;
+    renderer_data* Batch = &CurrentState->RendererData;
 
     if(Input->Button.S.EndedDown) {
         if(CurrentState->IsPaused)
@@ -165,11 +181,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
     uint32 NumActieTiles = 0;
 
-    StartBatch(&Batch[BackgroundBatch], CurrentState->BackgroundBitmap, CurrentState->Projection);
-    DrawBatchRectangle(&Batch[BackgroundBatch], {0, 0}, {(f32)CurrentState->BackgroundBitmap->Width, (f32)CurrentState->BackgroundBitmap->Height}, {1.0f, 1.0f, 1.0f, 1.0f});
-    EndBatch(&Batch[BackgroundBatch]);
-
-    StartBatch(&Batch[TileBatch], CurrentState->TileBitmap, CurrentState->Projection);
+    DrawBatchRectangle(Batch, &CurrentState->Textures[0], {0, 0, 1, 1.0f}, NULL, {0, 0}, {800, 600});
 
     u32* Level = CurrentState->Level;
 
@@ -191,7 +203,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
                 Color = {0.0f, 0.3f, 0.9f, 1.0f};
             else if(Level[i * 8 + j] == 5)
                 Color = {1.0f, 0.7f, 0.3f, 1.0f};
-            DrawBatchRectangle(&Batch[TileBatch], Position, Dimensions, Color);
+            DrawBatchRectangle(Batch, &CurrentState->Textures[1], Color, NULL, Position, Dimensions);
             if(RectangleColloide({Position, Dimensions}, CurrentState->Ball))
             {
                 fprintf(stderr, "Tile Colloide %i\n", Level[i * 8 + j]);
@@ -207,8 +219,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
-    EndBatch(&Batch[TileBatch]);
-
     if(NumActieTiles == 0)
     {
         fprintf(stderr, "You Win!\n");
@@ -216,20 +226,18 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->HaveLoadState = false;
     }
 
-    StartBatch(&Batch[BallBatch], CurrentState->BallBitmap, CurrentState->Projection);
-    DrawBatchRectangle(&Batch[BallBatch], Ball->Pos, Ball->Dimensions, {1.0f, 1.0f, 1.0f, 1.0f});
-    EndBatch(&Batch[BallBatch]);
-
-    StartBatch(&Batch[PaddleBatch], CurrentState->PaddleBitmap, CurrentState->Projection);
-    DrawBatchRectangle(&Batch[PaddleBatch], Paddle->Pos, Paddle->Dimensions, {1.0f, 1.0f, 1.0f, 1.0f});
-    EndBatch(&Batch[PaddleBatch]);
-
     if(Input->Button.Terminate.EndedDown)
     {
         CurrentState->HaveLoadState = true;
     }
-    if(Input)
-    {
 
-    }
+    DrawBatchRectangle(Batch, &CurrentState->Textures[2], {1, 1, 1, 1}, NULL, Paddle->Pos, Paddle->Dimensions);
+    DrawBatchRectangle(Batch, &CurrentState->Textures[3], {1, 1, 1, 1}, NULL, Ball->Pos, Ball->Dimensions);
+
+    FlushRenderer(Batch);
+
+    // sprite_batch Batch;
+    // StartBatch(&Batch);
+    // DrawRectangle(&Batch, Texture, Color, Pos, Dim, TextureClip);
+    // EndBatch(&Batch);
 }

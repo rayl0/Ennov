@@ -11,9 +11,9 @@ extern "C" {
 #ifdef ENNOV_DEBUG
 #define Assert(Expression) {if(!(Expression)){ fprintf(stderr, "Assertion failed: %s\n", #Expression ); *(char*)0 = 1; }}
 #else
-#define Assert(Expression) 
-#endif 
-    
+#define Assert(Expression)
+#endif
+
 #define global_variable static
 #define local_persist static
 #define internal static
@@ -23,6 +23,8 @@ typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
 typedef bool bool32;
+
+typedef size_t memory_index;
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -61,12 +63,12 @@ typedef struct game_cursor_state
 
 typedef struct game_input
 {
-    game_cursor_state Cursor;    
+    game_cursor_state Cursor;
 	union {
 		game_button_state Buttons[11];
 
 		// TODO(Rajat): Update them for the Standard gaming
-		struct 
+		struct
 		{
 			game_button_state MoveUp;
 			game_button_state MoveDown;
@@ -74,7 +76,7 @@ typedef struct game_input
 			game_button_state MoveRight;
 
 			game_button_state Start;
-      game_button_state Terminate;
+            game_button_state Terminate;
 			game_button_state Select;
 
 			game_button_state X;
@@ -103,14 +105,28 @@ typedef struct game_memory
   u32 TransientStorageSize;
 }game_memory;
 
+typedef struct game_areana
+{
+    void* BaseAddress;
+    u32 Used;
+    memory_index Size;
+}game_areana;
+
+void InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size);
+void* PushStruct_(game_areana* Areana, memory_index Size);
+
+#define PushStruct(Areana, Type) (Type *) PushStruct_(Areana, sizeof(Type))
+
 typedef struct game_interface
 {
 	loaded_bitmap*(*PlatformLoadBitmapFrom)(char* File);
 }game_interface;
 
-typedef struct game_state 
+typedef struct game_state
 {
 	game_interface Interface;
+    game_areana GameStorage;
+    game_areana ScratchStorage;
   struct window_context_attribs
   {
     int32 Width;
@@ -124,5 +140,5 @@ void GameUpdateAndRender(game_memory* Memory, game_state* State, game_input* Inp
 }
 #endif
 
-#define ENNOV_PALTFORM_H 
+#define ENNOV_PALTFORM_H
 #endif
