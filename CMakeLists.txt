@@ -5,6 +5,7 @@ add_subdirectory(src/glm EXCLUDE_FROM_ALL)
 
 add_executable(linux_ennov src/linux_ennov.cpp)
 add_library(ennov SHARED src/ennov.cpp)
+add_executable(packer src/meta/packer.cc)
 
 target_link_libraries(ennov PUBLIC glm::glm)
 target_compile_options(ennov PUBLIC -DENNOV_DEBUG)
@@ -16,5 +17,9 @@ endif()
 
 target_link_libraries(linux_ennov PUBLIC X11 GL GLX pthread dl glm::glm)
 target_include_directories(linux_ennov PUBLIC src/)
-target_compile_options(linux_ennov PUBLIC -DENNOV_DEBUG)
-target_compile_features(linux_ennov PUBLIC c_std_99 cxx_std_11)
+target_compile_options(linux_ennov PUBLIC -DENNOV_DEBUG -no-pie)
+target_compile_features(linux_ennov PUBLIC c_std_99 cxx_std_98)
+
+target_link_libraries(packer PUBLIC pthread)
+target_compile_options(packer PUBLIC -DPACKER_DEBUG)
+target_compile_features(packer PUBLIC cxx_std_11)

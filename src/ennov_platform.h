@@ -127,6 +127,7 @@ typedef struct game_state
 	game_interface Interface;
     game_areana GameStorage;
     game_areana ScratchStorage;
+    f32 Delta;
   struct window_context_attribs
   {
     int32 Width;

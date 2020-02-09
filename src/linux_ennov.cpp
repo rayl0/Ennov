@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <pthread.h>
 
@@ -363,6 +364,8 @@ ThreadFunc(void* Arg)
     return NULL;
 }
 
+// Important(rajat): Read about Vsync and context creation in X11
+
 int
 main(int argc, char* argv[])
 {
@@ -415,30 +418,54 @@ main(int argc, char* argv[])
 
     GameState.Interface.PlatformLoadBitmapFrom = PlatformLoadBitmapFrom;
 
+    GameLibrary = dlopen("./ennov.so", RTLD_NOW);
+    GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input))dlsym(GameLibrary, "GameUpdateAndRender");
+
+    timespec Time;
+    f32 TimeInMs;
+
+    f32 TimeNowInMs;
+    f32 LastTimeInMs;
+
+    f32 LastFrameElasped = 0;
+    f32 Delta;
+
     while (State.Running) {
+        clock_gettime(CLOCK_MONOTONIC, &Time);
+        TimeInMs = (Time.tv_sec * 1.0e6 + Time.tv_nsec / 1.0e3);
         X11ProcessEvents(&State, NewInput, &GameState);
 
         glClear(GL_COLOR_BUFFER_BIT);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        GameLibrary = dlopen("./ennov.so", RTLD_NOW);
-        if (!GameLibrary) {
-          sleep(1);
-          GameLibrary = dlopen("./ennov.so", RTLD_NOW);
-          fprintf(stderr, "%s\n", dlerror());
-        }
+        // GameLibrary = dlopen("./ennov.so", RTLD_NOW);
+        // if (!GameLibrary) {
+        //   sleep(1);
+        //   GameLibrary = dlopen("./ennov.so", RTLD_NOW);
+        //   fprintf(stderr, "%s\n", dlerror());
+        // }
 
 
-        GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input))dlsym(GameLibrary, "GameUpdateAndRender");
+        // GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input))dlsym(GameLibrary, "GameUpdateAndRender");
 
         GameUpdateAndRender(&GameMemory, &GameState, NewInput);
 
         glXSwapBuffers(State.Display_, State.Window_);
 
+        timespec TimeNow;
+        clock_gettime(CLOCK_MONOTONIC, &TimeNow);
+
+        TimeNowInMs = (TimeNow.tv_sec * 1.0e6 + (TimeNow.tv_nsec / 1.0e3));
+
+        LastTimeInMs = TimeNowInMs - TimeInMs;
+
+        GameState.Delta = LastTimeInMs / 1.0e6;
+        printf("%f\n", GameState.Delta);
+
         game_input* Temp;
         Temp = OldInput;
         OldInput = NewInput;
         NewInput = Temp;
-        dlclose(GameLibrary);
+        // dlclose(GameLibrary);
     }
 
     // TODO(Rajat): Not final save game functionality but the simplest and dumbest
@@ -449,6 +476,8 @@ main(int argc, char* argv[])
     // NOTE(Rajat): Don't forget to free resources after use
     munmap(GameMemory.PermanentStorage, GameMemory.PermanentStorageSize);
     munmap(GameMemory.TransientStorage, GameMemory.TransientStorageSize);
+
+    dlclose(GameLibrary);
 
     glXDestroyContext(State.Display_, State.Context);
     XFreeColormap(State.Display_, State.WindowColormap);

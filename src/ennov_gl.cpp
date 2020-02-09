@@ -16,6 +16,7 @@
 
 struct batch_data
 {
+    u32 Id;
     u32 DynamicVertexBuffer;
     u32 VertexArray;
     u32 NumBindTextureSlots;
@@ -30,6 +31,7 @@ struct renderer_data
     s32 NumTextureSlots;
     batch_data BackBatch;
     batch_data *Batches;
+    u32 CurrentBatchedStateBindedID;
     u32 NumBatchCount;
     u32 ShaderProgram;
     game_areana *Areana;
@@ -205,7 +207,9 @@ CreateTexture(loaded_bitmap* Texture)
 internal batch_data
 CreateBatch(game_areana* Areana)
 {
+    local_persist u32 LastId = 0;
     batch_data Batch = {};
+    Batch.Id = LastId;
     glGenVertexArrays(1, &Batch.VertexArray);
     glBindVertexArray(Batch.VertexArray);
 
@@ -226,6 +230,8 @@ CreateBatch(game_areana* Areana)
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
+
+    LastId++;
 
     return Batch;
 }
@@ -319,25 +325,30 @@ DrawBatchRectangle(renderer_data* RenderData, texture *Texture, vec4 Color, rect
 void FlushBatch(batch_data* Batch, u32 ShaderProgram)
 {
     if(Batch) {
-        glBindVertexArray(Batch->VertexArray);
-        glBindBuffer(GL_ARRAY_BUFFER, Batch->DynamicVertexBuffer);
+        local_persist s32 LastId = -1; // TODO(rajat): remove these static variables
+        if((s32)Batch->Id != LastId)
+        {
+            if(Batch->NumBindTextureSlots != 0)
+            {
+                for(int i = 0; i < Batch->NumBindTextureSlots; ++i)
+                {
+                    glActiveTexture(GL_TEXTURE0 + i);
+                    glBindTexture(GL_TEXTURE_2D, Batch->TextureSlots[i]);
+                }
+            }
+            glUseProgram(ShaderProgram);
+            glBindVertexArray(Batch->VertexArray);
+            glBindBuffer(GL_ARRAY_BUFFER, Batch->DynamicVertexBuffer);
+        }
 
         void* BufferData = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
         memcpy(BufferData, Batch->VertexBufferData, sizeof(float) * Batch->VertexBufferCurrentPos);
         Assert(glUnmapBuffer(GL_ARRAY_BUFFER) == GL_TRUE);
 
-        if(Batch->NumBindTextureSlots != 0)
-        {
-            for(int i = 0; i < Batch->NumBindTextureSlots; ++i)
-            {
-                glActiveTexture(GL_TEXTURE0 + i);
-                glBindTexture(GL_TEXTURE_2D, Batch->TextureSlots[i]);
-            }
-        }
-
-        glUseProgram(ShaderProgram);
         glDrawArrays(GL_TRIANGLES, 0, Batch->VertexBufferCurrentPos/9);
         Batch->VertexBufferCurrentPos = 0;
+
+        LastId = Batch->Id;
     }
 
 }

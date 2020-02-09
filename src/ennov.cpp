@@ -5,7 +5,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "ennov_math.h"
-#include "ennov_gl.cc"
+#include "ennov_gl.cpp"
 
 void InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size)
 {
@@ -58,6 +58,9 @@ struct breakout_game_state
     b32 IsPaused;
 };
 
+#define Velocity 200;
+#define PaddleVelocity 2000;
+
 void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Input)
 {
     // NOTE(Rajat): Never do assertions within a loop increment
@@ -66,10 +69,9 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     //  OpenGLInitContext({State->ContextAttribs.Width, State->ContextAttribs.Height});
     // DrawRectangle(draw_attribs);
 
-    gladLoadGL();
-
     breakout_game_state* CurrentState = (breakout_game_state*)Memory->PermanentStorage;
     if(!Memory->IsInitialized) {
+        gladLoadGL();
 
         InitializeAreana(&State->GameStorage, Memory->PermanentStorage + sizeof(CurrentState), Memory->PermanentStorageSize - sizeof(CurrentState));
         InitializeAreana(&State->ScratchStorage, Memory->TransientStorage, Memory->TransientStorageSize);
@@ -77,7 +79,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         if(!CurrentState->HaveLoadState) {
             CurrentState->Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}};
             CurrentState->Ball = {{CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f}, {10.0f, 10.0f}};
-            CurrentState->Direction = {4.0f, 4.0f};
+            CurrentState->Direction = {1.0f, 2.0f};
 
             CurrentState->Fired = false;
             CurrentState->Lives = 3;
@@ -136,8 +138,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             CurrentState->Fired = true;
         }
         if(CurrentState->Fired) {
-            Ball->Pos.y -= Direction->y;
-            Ball->Pos.x += Direction->x;
+            Ball->Pos.y -= State->Delta * Direction->y * Velocity;
+            Ball->Pos.x += State->Delta * Direction->x * Velocity;
         }
         if(Ball->Pos.x > 790.0f) Direction->x = -(Direction->x);
         if(Ball->Pos.y < 0.0f) Direction->y = -(Direction->y);
@@ -145,7 +147,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         if(Ball->Pos.y > 600.0f) {
             CurrentState->Fired = false;
             Ball->Pos = {100.0f, 550.0f - Ball->Dimensions.y};
-            *Direction = { 4.0f, 4.0f};
+            *Direction = { 1.0f, 2.0f};
             --(CurrentState->Lives);
             fprintf(stderr, "One Life deducted!\n");
             if(CurrentState->Lives == 0)
@@ -167,13 +169,13 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
         if(Input->Button.MoveRight.EndedDown)
         {
-            Paddle->Pos.x += 64.0f;
+            Paddle->Pos.x += State->Delta * PaddleVelocity;
             if(Paddle->Pos.x >= 700.0f)
                 Paddle->Pos.x = 700.0f;
         }
         if(Input->Button.MoveLeft.EndedDown)
         {
-            Paddle->Pos.x -= 64.0f;
+            Paddle->Pos.x -= State->Delta * PaddleVelocity;
             if(Paddle->Pos.x <= 0.0f)
                 Paddle->Pos.x = 0.0f;
         }
@@ -181,7 +183,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
     uint32 NumActieTiles = 0;
 
-    DrawBatchRectangle(Batch, &CurrentState->Textures[0], {0, 0, 1, 1.0f}, NULL, {0, 0}, {800, 600});
+    DrawBatchRectangle(Batch, &CurrentState->Textures[0], {1, 1, 1, 1.0f}, NULL, {0, 0}, {800, 600});
 
     u32* Level = CurrentState->Level;
 
@@ -222,7 +224,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     if(NumActieTiles == 0)
     {
         fprintf(stderr, "You Win!\n");
-        Memory->IsInitialized = false;
+        // Memory->IsInitialized = false;
         CurrentState->HaveLoadState = false;
     }
 
@@ -232,7 +234,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     }
 
     DrawBatchRectangle(Batch, &CurrentState->Textures[2], {1, 1, 1, 1}, NULL, Paddle->Pos, Paddle->Dimensions);
-    DrawBatchRectangle(Batch, &CurrentState->Textures[3], {1, 1, 1, 1}, NULL, Ball->Pos, Ball->Dimensions);
+    DrawBatchRectangle(Batch, &CurrentState->Textures[1], {1, 1, 1, 1}, NULL, Ball->Pos, Ball->Dimensions);
 
     FlushRenderer(Batch);
 
