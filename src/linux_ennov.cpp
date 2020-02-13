@@ -1,8 +1,6 @@
 // TODO(Rajat):
 /*
-  --2D Renderer
   --Multithreaded Asset Loading
-  --Toggle Maximize and switching b/w modes
   --Text Rendering
   --Tilemap Rendering
   --GJK Collision Detection
@@ -23,13 +21,17 @@
 
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <dirent.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <unistd.h>
 
 #include "glad/glad.c"
 #include "ennov_platform.h"
 
 #include <GL/glx.h>
+#include <GL/glxext.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include "glm/glm.hpp"
@@ -280,6 +282,10 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
             if(Key == XK_space) {
                 X11ProcessButton(&NewInput->Button.Start, IsDown);
             }
+            if(Key == XK_q)
+            {
+                X11ProcessButton(&NewInput->Button.Select, IsDown);
+            }
             #ifdef ENNOV_DEBUG
             if (Key == XK_Tab) {
                 State->Running = false;
@@ -343,23 +349,41 @@ PlatformLoadBitmapFrom(char* file)
  * };
  */
 
-struct thread_info
+struct platform_work_queue
 {
-    pthread_t ThreadId;
-    u32 ThreadIndex;
-    char* StringToPrint;
+    void* BufferToWrite;
+    char* Queue[256];
+    int Count;
+    int BufferOffset;
+    int BufferSize;
 };
 
+sem_t WorkMutex;
 
 // NOTE(rajat): Adopt style used in this function and leave everything else
 // NOTE(rajat): Already configured spacemacs to use this style
 internal void*
 ThreadFunc(void* Arg)
 {
-    thread_info* Info = (thread_info*)Arg;
+    platform_work_queue* WorkQueue = (platform_work_queue*)Arg;
     for(;;)
     {
-        fprintf(stderr, "Thread %i: %s\n", Info->ThreadIndex, Info->StringToPrint);
+        sem_wait(&WorkMutex);
+        int FileHandle;
+        struct stat FileStat;
+        for(int i = 0; i < WorkQueue->Count; ++i)
+        {
+            FileHandle = open(WorkQueue->Queue[i], O_RDONLY);
+            fstat(FileHandle, &FileStat);
+
+            // TODO(rajat): Introduce another semaphore for WorkQueue.Count to maximize parallel
+            // processing with more threads
+            Assert(WorkQueue->BufferOffset + FileStat.st_size < WorkQueue->BufferSize);
+            read(FileHandle, WorkQueue->BufferToWrite + WorkQueue->BufferOffset, FileStat.st_size);
+
+            WorkQueue->BufferOffset += FileStat.st_size;
+        }
+        sem_post(&WorkMutex);
     }
     return NULL;
 }
@@ -369,15 +393,11 @@ ThreadFunc(void* Arg)
 int
 main(int argc, char* argv[])
 {
-    thread_info WorkerThread[3] = {};
-    WorkerThread[0].StringToPrint = "Hello from thread";
-    WorkerThread[1].StringToPrint = "Lol!";
-    WorkerThread[2].StringToPrint = "Sorry!";
-    WorkerThread[0].ThreadIndex = 0;
-    WorkerThread[1].ThreadIndex = 1;
-    WorkerThread[2].ThreadIndex = 2;
-    // pthread_create(&WorkerThread[0].ThreadId, NULL, ThreadFunc, &WorkerThread[0]);
-    // pthread_create(&WorkerThread[1].ThreadId, NULL, ThreadFunc, &WorkerThread[1]);
+    sem_init(&WorkMutex, 0, 1);
+    platform_work_queue WorkQueue = {};
+    pthread_t WorkerThread[2] = {};
+    pthread_create(&WorkerThread[0], NULL, ThreadFunc, &WorkQueue);
+    pthread_create(&WorkerThread[1], NULL, ThreadFunc, &WorkQueue);
     // pthread_create(&WorkerThread[2].ThreadId, NULL, ThreadFunc, &WorkerThread[2]);
 
     x11_state State = {};
@@ -394,21 +414,30 @@ main(int argc, char* argv[])
     game_memory GameMemory = {};
     GameMemory.PermanentStorageSize = MEGABYTES_TO_BTYES(512);
     GameMemory.TransientStorageSize = MEGABYTES_TO_BTYES(256);
+    GameMemory.AssetMemorySize = MEGABYTES_TO_BTYES(100);
     GameMemory.PermanentStorage = mmap(0, GameMemory.PermanentStorageSize,
                                        PROT_READ|PROT_WRITE|PROT_EXEC,
                                        MAP_ANON|MAP_PRIVATE, 0, 0);
-    GameMemory.TransientStorage = mmap(0, GameMemory.TransientStorageSize,
+    GameMemory.TransientStorage = mmap((void*)(1 << 10), GameMemory.TransientStorageSize,
                                        PROT_READ|PROT_WRITE|PROT_EXEC,
                                        MAP_ANON|MAP_PRIVATE, 0, 0);
+    GameMemory.AssetMemory = mmap((void*)(1 << 20), GameMemory.AssetMemorySize,
+                                  PROT_READ|PROT_WRITE|PROT_EXEC,
+                                  MAP_ANON|MAP_PRIVATE, 0, 0);
     GameMemory.IsInitialized = false;
 
     // TODO(Rajat): Not final game saving and loading system
     int SaveFileHandle = open("./GameState.txt", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
-    read(SaveFileHandle, GameMemory.PermanentStorage, MEGABYTES_TO_BTYES(1));
+
+    // TODO(rajat): Consider using directory operations and lseek operations
+    // TODO(rajat): Check the file exists or has read or write permissions
+    struct stat SaveFileStat;
+    fstat(SaveFileHandle, &SaveFileStat);
+
+    read(SaveFileHandle, GameMemory.PermanentStorage, SaveFileStat.st_size);
     close(SaveFileHandle);
 
-    void (*GameUpdateAndRender)(game_memory* Memory, game_state *State, game_input *Input);
-
+    void (*GameUpdateAndRender)(game_memory* Memory, game_state *State, game_input *Input, u32 *ConfigBits);
     game_input Input[2] = {};
     game_input* OldInput = &Input[0];
     game_input* NewInput = &Input[1];
@@ -419,24 +448,29 @@ main(int argc, char* argv[])
     GameState.Interface.PlatformLoadBitmapFrom = PlatformLoadBitmapFrom;
 
     GameLibrary = dlopen("./ennov.so", RTLD_NOW);
-    GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input))dlsym(GameLibrary, "GameUpdateAndRender");
+    GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input, u32 *ConfigBits))dlsym(GameLibrary, "GameUpdateAndRender");
 
-    timespec Time;
-    f32 TimeInMs;
-
-    f32 TimeNowInMs;
+    timespec LastTime;
     f32 LastTimeInMs;
 
-    f32 LastFrameElasped = 0;
+    // TODO(rajat): Query support for realtime and monotonic clocks
+    clock_gettime(CLOCK_MONOTONIC, &LastTime);
+    LastTimeInMs = ((f32)LastTime.tv_sec * 1.0e3f) + ((f32)LastTime.tv_nsec / 1.0e6f);
+
     f32 Delta;
 
+    PFNGLXSWAPINTERVALMESAPROC glXSwapIntervalMESA;
+    glXSwapIntervalMESA = (PFNGLXSWAPINTERVALMESAPROC)glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalMESA");
+
+    // TODO(rajat): Do proper Query before using this
+    glXSwapIntervalMESA(1);
+
+    // TODO(rajat): Not optimal way to doing this, will be replaced soon
+    u32 ConfigBits = 0;
+
     while (State.Running) {
-        clock_gettime(CLOCK_MONOTONIC, &Time);
-        TimeInMs = (Time.tv_sec * 1.0e6 + Time.tv_nsec / 1.0e3);
         X11ProcessEvents(&State, NewInput, &GameState);
 
-        glClear(GL_COLOR_BUFFER_BIT);
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         // GameLibrary = dlopen("./ennov.so", RTLD_NOW);
         // if (!GameLibrary) {
         //   sleep(1);
@@ -447,19 +481,27 @@ main(int argc, char* argv[])
 
         // GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input))dlsym(GameLibrary, "GameUpdateAndRender");
 
-        GameUpdateAndRender(&GameMemory, &GameState, NewInput);
-
+        GameUpdateAndRender(&GameMemory, &GameState, NewInput, &ConfigBits);
         glXSwapBuffers(State.Display_, State.Window_);
 
-        timespec TimeNow;
-        clock_gettime(CLOCK_MONOTONIC, &TimeNow);
+        if(ConfigBits == PlatformFullScreenToggle_BIT)
+        {
+            X11ToggleFullScreen(State.Display_, State.Window_);
+        }
 
-        TimeNowInMs = (TimeNow.tv_sec * 1.0e6 + (TimeNow.tv_nsec / 1.0e3));
+        ConfigBits = 0;
 
-        LastTimeInMs = TimeNowInMs - TimeInMs;
+        timespec CurrentTimeSpec;
+        clock_gettime(CLOCK_MONOTONIC, &CurrentTimeSpec);
 
-        GameState.Delta = LastTimeInMs / 1.0e6;
-        printf("%f\n", GameState.Delta);
+        f32 CurrentTimeInMs = ((f32)CurrentTimeSpec.tv_sec * 1.0e3f) + ((f32)CurrentTimeSpec.tv_nsec / 1.0e6f);
+
+        // NOTE(rajat): Delta value will be in deciseconds not seconds
+        GameState.Delta = (CurrentTimeInMs - LastTimeInMs) / 1.0e2f;
+        printf("%f\n", GameState.Delta * 1.0e2f);
+        printf("%f\n", 1000/(GameState.Delta * 1.0e2f));
+
+        LastTimeInMs = CurrentTimeInMs;
 
         game_input* Temp;
         Temp = OldInput;
@@ -469,13 +511,14 @@ main(int argc, char* argv[])
     }
 
     // TODO(Rajat): Not final save game functionality but the simplest and dumbest
-    SaveFileHandle = open("./GameState.txt", O_WRONLY, S_IRWXU | S_IRWXG | S_IRWXO);
-    write(SaveFileHandle, GameMemory.PermanentStorage, MEGABYTES_TO_BTYES(2));
+    SaveFileHandle = open("./GameState.txt", O_WRONLY | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+    write(SaveFileHandle, GameMemory.PermanentStorage, MEGABYTES_TO_BTYES(1));
     close(SaveFileHandle);
 
     // NOTE(Rajat): Don't forget to free resources after use
     munmap(GameMemory.PermanentStorage, GameMemory.PermanentStorageSize);
     munmap(GameMemory.TransientStorage, GameMemory.TransientStorageSize);
+    munmap(GameMemory.AssetMemory, GameMemory.AssetMemorySize);
 
     dlclose(GameLibrary);
 

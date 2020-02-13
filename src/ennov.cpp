@@ -27,8 +27,7 @@ void* PushStruct_(game_areana* Areana, memory_index Size)
 // TODO(Rajat): Implement Matrix and transformation methods
 // TODO(Rajat): Don't start a new project after coming back on
 // this after march exams
-// TODO(Rajat): Change if brace identation if you are not comfertable
-// TODO(Rajat): Don't ever change your editor from spacemacs
+// NOTE(Rajat): Don't ever change your editor from spacemacs
 
 enum breakout_batch_id
 {
@@ -58,10 +57,10 @@ struct breakout_game_state
     b32 IsPaused;
 };
 
-#define Velocity 200;
-#define PaddleVelocity 2000;
+#define Velocity 20;
+#define PaddleVelocity 150;
 
-void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Input)
+void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Input, u32 *ConfigBits)
 {
     // NOTE(Rajat): Never do assertions within a loop increment
     // Assert(Count < 1);
@@ -78,7 +77,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
         if(!CurrentState->HaveLoadState) {
             CurrentState->Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}};
-            CurrentState->Ball = {{CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f}, {10.0f, 10.0f}};
+            CurrentState->Ball = {{CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f}, {20.0f, 20.0f}};
             CurrentState->Direction = {1.0f, 2.0f};
 
             CurrentState->Fired = false;
@@ -90,8 +89,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             u32 TileMap[32] = {
                 1, 2, 3, 1, 4, 1, 2, 3,
                 5, 3, 5, 1, 3, 5, 4, 1,
-                4, 1, 0, 0, 0, 1, 0, 0,
-                0, 0, 0, 0, 4, 3, 0, 0
+                4, 1, 3, 5, 2, 1, 2, 5,
+                0, 0, 1, 2, 4, 3, 0, 0
             };
 
             for(int i = 0; i < 32; ++i) {
@@ -102,11 +101,13 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->RendererData = {};
 
         CurrentState->RendererData.Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f); // TODO(Rajat): Update projection with window size change!
-        InitRenderer(&CurrentState->RendererData, &State->GameStorage);
+        InitRenderer(&CurrentState->RendererData, &State->ScratchStorage);
         CurrentState->BackgroundBitmap = State->Interface.PlatformLoadBitmapFrom("./background.jpg");
         CurrentState->BallBitmap = State->Interface.PlatformLoadBitmapFrom("./background.jpg");
         CurrentState->PaddleBitmap = State->Interface.PlatformLoadBitmapFrom("./paddle.png");
-        CurrentState->TileBitmap = State->Interface.PlatformLoadBitmapFrom("./block.png");
+        CurrentState->TileBitmap = State->Interface.PlatformLoadBitmapFrom("./container.png");
+
+        // asset_work_queue WorkQueue;
 
         CurrentState->Textures[0] = CreateTexture(CurrentState->BackgroundBitmap);
         CurrentState->Textures[1] = CreateTexture(CurrentState->TileBitmap);
@@ -116,6 +117,9 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
         Memory->IsInitialized = true;
     }
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor(0, 0, 0, 0);
 
     rect* Ball = &CurrentState->Ball;
     rect* Paddle = &CurrentState->Paddle;
@@ -181,8 +185,22 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
+    // TODO(rajat): Introduce new buttons in game_input struct for this
+    if(Input->Button.Select.EndedDown)
+    {
+        if(*ConfigBits == PlatformFullScreenToggle_BIT)
+        {
+            *ConfigBits = 0;
+        }
+        else
+        {
+            *ConfigBits = PlatformFullScreenToggle_BIT;
+        }
+    }
+
     uint32 NumActieTiles = 0;
 
+    // TODO(rajat): Add src clipping to the renderer
     DrawBatchRectangle(Batch, &CurrentState->Textures[0], {1, 1, 1, 1.0f}, NULL, {0, 0}, {800, 600});
 
     u32* Level = CurrentState->Level;

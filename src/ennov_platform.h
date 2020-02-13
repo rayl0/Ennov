@@ -87,9 +87,12 @@ typedef struct game_input
 	};
 }game_input;
 
+#define PlatformFullScreenToggle_BIT (1 << 1)
+#define PlatformMaximizeToggle_BIT (1 << 2)
+
 typedef struct loaded_bitmap
 {
-  uint32 Width;
+    uint32 Width;
     uint32 Height;
     uint32 Channels;
     uint8* Pixels;
@@ -97,12 +100,15 @@ typedef struct loaded_bitmap
 
 typedef struct game_memory
 {
-  b32 IsInitialized;
-  void* PermanentStorage;
-  u32 PermanentStorageSize;
+    b32 IsInitialized;
+    void* PermanentStorage;
+    u32 PermanentStorageSize;
 
-  void* TransientStorage;
-  u32 TransientStorageSize;
+    void *AssetMemory;
+    u32 AssetMemorySize;
+
+    void* TransientStorage;
+    u32 TransientStorageSize;
 }game_memory;
 
 typedef struct game_areana
@@ -135,7 +141,7 @@ typedef struct game_state
   }ContextAttribs;
 }game_state;
 
-void GameUpdateAndRender(game_memory* Memory, game_state* State, game_input* Input);
+void GameUpdateAndRender(game_memory* Memory, game_state* State, game_input* Input, u32 *ConfigBits);
 
 #ifdef __cplusplus
 }
