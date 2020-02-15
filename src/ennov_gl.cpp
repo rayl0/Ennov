@@ -341,10 +341,8 @@ void FlushBatch(batch_data* Batch, u32 ShaderProgram)
             glBindBuffer(GL_ARRAY_BUFFER, Batch->DynamicVertexBuffer);
         }
 
-        void* BufferData = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-        memcpy(BufferData, Batch->VertexBufferData, sizeof(float) * Batch->VertexBufferCurrentPos);
-        Assert(glUnmapBuffer(GL_ARRAY_BUFFER) == GL_TRUE);
-
+        // TODO(rajat): Should use persistent mapping for supported platforms
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * Batch->VertexBufferCurrentPos, Batch->VertexBufferData);
         glDrawArrays(GL_TRIANGLES, 0, Batch->VertexBufferCurrentPos/9);
         Batch->VertexBufferCurrentPos = 0;
 

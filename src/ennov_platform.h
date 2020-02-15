@@ -90,11 +90,17 @@ typedef struct game_input
 #define PlatformFullScreenToggle_BIT (1 << 1)
 #define PlatformMaximizeToggle_BIT (1 << 2)
 
+typedef struct game_file
+{
+    void* Data;
+    u32 Size;
+}game_file;
+
 typedef struct loaded_bitmap
 {
-    uint32 Width;
-    uint32 Height;
-    uint32 Channels;
+    s32 Width;
+    s32 Height;
+    s32 Channels;
     uint8* Pixels;
 }loaded_bitmap;
 
@@ -125,7 +131,7 @@ void* PushStruct_(game_areana* Areana, memory_index Size);
 
 typedef struct game_interface
 {
-	loaded_bitmap*(*PlatformLoadBitmapFrom)(char* File);
+	game_file*(*PlatformLoadFile)(char* File, void*(*)(game_areana*, memory_index), game_areana*);
 }game_interface;
 
 typedef struct game_state
@@ -133,6 +139,7 @@ typedef struct game_state
 	game_interface Interface;
     game_areana GameStorage;
     game_areana ScratchStorage;
+    game_areana AssestStorage;
     f32 Delta;
   struct window_context_attribs
   {

@@ -7,21 +7,50 @@
 #include "ennov_math.h"
 #include "ennov_gl.cpp"
 
-void InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size)
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+void
+InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size)
 {
     Areana->BaseAddress = BaseAddress;
     Areana->Size = Size;
     Areana->Used = 0;
 }
 
-void* PushStruct_(game_areana* Areana, memory_index Size)
+u32
+CalculatePadding(u64 Address, u32 Align)
+{
+    u32 Padding = (Address % Align);
+    return (Padding == 0) ? 0 : (Align - Padding);
+}
+
+void*
+PushStruct_(game_areana* Areana, memory_index Size)
 {
     Assert(Areana->Used + Size <= Areana->Size);
     void* NewStruct = (Areana->BaseAddress + Areana->Used);
-    Areana->Used += Size;
+    u64 Address = ((u64)(Areana->BaseAddress) + Areana->Used);
+    u32 Padding = CalculatePadding(Address, 8);
+    Areana->Used += Size + Padding;
     return NewStruct;
 }
 
+game_file*(*PlatformLoadFile)(char*, void*(*)(game_areana*, memory_index), game_areana*);
+
+loaded_bitmap*
+LoadPixelsFrom(char* FileName, game_areana* Areana)
+{
+    game_file* File = (game_file*)PlatformLoadFile(FileName, PushStruct_, Areana);
+    if(File)
+    {
+        loaded_bitmap* NewBitmap = PushStruct(Areana, loaded_bitmap);
+        NewBitmap->Pixels = stbi_load_from_memory((stbi_uc*)File->Data, File->Size, &NewBitmap->Width, &NewBitmap->Height, &NewBitmap->Channels, 0);
+
+        return NewBitmap;
+    }
+    return NULL;
+}
 
 // TODO(Rajat): Implement Rand number generator
 // TODO(Rajat): Implement Matrix and transformation methods
@@ -69,11 +98,13 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     // DrawRectangle(draw_attribs);
 
     breakout_game_state* CurrentState = (breakout_game_state*)Memory->PermanentStorage;
+    PlatformLoadFile = State->Interface.PlatformLoadFile;
     if(!Memory->IsInitialized) {
         gladLoadGL();
 
         InitializeAreana(&State->GameStorage, Memory->PermanentStorage + sizeof(CurrentState), Memory->PermanentStorageSize - sizeof(CurrentState));
         InitializeAreana(&State->ScratchStorage, Memory->TransientStorage, Memory->TransientStorageSize);
+        InitializeAreana(&State->AssestStorage, Memory->AssetMemory, Memory->AssetMemorySize);
         // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
         if(!CurrentState->HaveLoadState) {
             CurrentState->Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}};
@@ -102,10 +133,10 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
         CurrentState->RendererData.Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f); // TODO(Rajat): Update projection with window size change!
         InitRenderer(&CurrentState->RendererData, &State->ScratchStorage);
-        CurrentState->BackgroundBitmap = State->Interface.PlatformLoadBitmapFrom("./background.jpg");
-        CurrentState->BallBitmap = State->Interface.PlatformLoadBitmapFrom("./background.jpg");
-        CurrentState->PaddleBitmap = State->Interface.PlatformLoadBitmapFrom("./paddle.png");
-        CurrentState->TileBitmap = State->Interface.PlatformLoadBitmapFrom("./container.png");
+        CurrentState->BackgroundBitmap = LoadPixelsFrom("./background.jpg", &State->AssestStorage);
+        CurrentState->BallBitmap = LoadPixelsFrom("./background.jpg", &State->AssestStorage);
+        CurrentState->PaddleBitmap = LoadPixelsFrom("./paddle.png", &State->AssestStorage);
+        CurrentState->TileBitmap = LoadPixelsFrom("./container.png", &State->AssestStorage);
 
         // asset_work_queue WorkQueue;
 
@@ -249,6 +280,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     if(Input->Button.Terminate.EndedDown)
     {
         CurrentState->HaveLoadState = true;
+        Ball->Pos = {Paddle->Pos.x + Paddle->Dimensions.x / 2, 550.0f - Ball->Dimensions.y};
+        CurrentState->Fired = false;
     }
 
     DrawBatchRectangle(Batch, &CurrentState->Textures[2], {1, 1, 1, 1}, NULL, Paddle->Pos, Paddle->Dimensions);

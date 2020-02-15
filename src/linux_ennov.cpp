@@ -1,11 +1,8 @@
 // TODO(Rajat):
 /*
-  --Multithreaded Asset Loading
   --Text Rendering
-  --Tilemap Rendering
-  --GJK Collision Detection
+  --GJK Collision Detection (It is not necessary to use this)
   --Cleaning Up Platform layer
-  --Fullscreen Toggle
   --Input System Cleaning
  */
 #include <X11/Xlib.h>
@@ -34,12 +31,6 @@
 #include <GL/glxext.h>
 #include <dlfcn.h>
 #include <fcntl.h>
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 
 #define MEGABYTES_TO_BTYES(i) \
     (i * 1024 * 1024)
@@ -293,7 +284,6 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
             }
             #endif //ENNOV_DEBUG
         } break;
-
             break;
         case KeyRelease:
             break;
@@ -320,70 +310,47 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
     }
 }
 
-internal loaded_bitmap*
-PlatformLoadBitmapFrom(char* file)
+internal game_file*
+PlatformLoadFile(char* File, void*(Alloc)(game_areana*, memory_index), game_areana* Areana)
 {
-    int TexWidth, TexHeight, Channels;
-    uint8* Pixels = stbi_load(file, &TexWidth, &TexHeight, &Channels, 0);
+    if(Alloc)
+    {
+        int FileHandle;
+        struct stat FileState;
 
-    if(Pixels) {
-        loaded_bitmap* NewBitmap = (loaded_bitmap*)malloc(sizeof(loaded_bitmap));
-        NewBitmap->Width = TexWidth;
-        NewBitmap->Height = TexHeight;
-        NewBitmap->Channels = Channels;
-        NewBitmap->Pixels = Pixels;
-        return NewBitmap;
-    }
-    else {
-        // TODO(Rajat): Logging
+        FileHandle = open(File, O_RDONLY);
+        fstat(FileHandle, &FileState);
+
+        void* WriteAddress = Alloc(Areana, FileState.st_size);
+        read(FileHandle, WriteAddress, FileState.st_size);
+
+        game_file* File = (game_file*)Alloc(Areana, sizeof(game_file));
+        File->Data = WriteAddress;
+        File->Size = FileState.st_size;
+
+        return File;
     }
     return NULL;
 }
-
-
-/* struct game_memory
- * {
- *     uint32 Size;
- *     void* Data;
- *     void* Transform;
- * };
- */
-
-struct platform_work_queue
-{
-    void* BufferToWrite;
-    char* Queue[256];
-    int Count;
-    int BufferOffset;
-    int BufferSize;
-};
-
-sem_t WorkMutex;
 
 // NOTE(rajat): Adopt style used in this function and leave everything else
 // NOTE(rajat): Already configured spacemacs to use this style
 internal void*
 ThreadFunc(void* Arg)
 {
-    platform_work_queue* WorkQueue = (platform_work_queue*)Arg;
     for(;;)
     {
-        sem_wait(&WorkMutex);
-        int FileHandle;
-        struct stat FileStat;
-        for(int i = 0; i < WorkQueue->Count; ++i)
-        {
-            FileHandle = open(WorkQueue->Queue[i], O_RDONLY);
-            fstat(FileHandle, &FileStat);
+        // struct stat FileStat;
+        // FileHandle = open(WorkQueue->Queue, O_RDONLY);
+        // fstat(FileHandle, &FileStat);
 
-            // TODO(rajat): Introduce another semaphore for WorkQueue.Count to maximize parallel
-            // processing with more threads
-            Assert(WorkQueue->BufferOffset + FileStat.st_size < WorkQueue->BufferSize);
-            read(FileHandle, WorkQueue->BufferToWrite + WorkQueue->BufferOffset, FileStat.st_size);
+        // // TODO(rajat): Introduce another semaphore for WorkQueue.Count to maximize parallel
+        // // processing with more threads
+        // Assert(WorkQueue->BufferOffset + FileStat.st_size < WorkQueue->BufferSize);
+        // read(FileHandle, WorkQueue->BufferToWrite + WorkQueue->BufferOffset, FileStat.st_size);
 
-            WorkQueue->BufferOffset += FileStat.st_size;
-        }
-        sem_post(&WorkMutex);
+        // WorkQueue->BufferOffset += FileStat.st_size;
+        // sem_post(&WorkMutex);
     }
     return NULL;
 }
@@ -393,12 +360,10 @@ ThreadFunc(void* Arg)
 int
 main(int argc, char* argv[])
 {
-    sem_init(&WorkMutex, 0, 1);
-    platform_work_queue WorkQueue = {};
+    // sem_init(&WorkMutex, 0, 1);
     pthread_t WorkerThread[2] = {};
-    pthread_create(&WorkerThread[0], NULL, ThreadFunc, &WorkQueue);
-    pthread_create(&WorkerThread[1], NULL, ThreadFunc, &WorkQueue);
-    // pthread_create(&WorkerThread[2].ThreadId, NULL, ThreadFunc, &WorkerThread[2]);
+    // pthread_create(&WorkerThread[0], NULL, ThreadFunc, &WorkQueue);
+    // pthread_create(&WorkerThread[1], NULL, ThreadFunc, &WorkQueue);
 
     x11_state State = {};
 
@@ -445,7 +410,7 @@ main(int argc, char* argv[])
 
     game_state GameState = {};
 
-    GameState.Interface.PlatformLoadBitmapFrom = PlatformLoadBitmapFrom;
+    GameState.Interface.PlatformLoadFile = PlatformLoadFile;
 
     GameLibrary = dlopen("./ennov.so", RTLD_NOW);
     GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input, u32 *ConfigBits))dlsym(GameLibrary, "GameUpdateAndRender");
@@ -498,8 +463,8 @@ main(int argc, char* argv[])
 
         // NOTE(rajat): Delta value will be in deciseconds not seconds
         GameState.Delta = (CurrentTimeInMs - LastTimeInMs) / 1.0e2f;
-        printf("%f\n", GameState.Delta * 1.0e2f);
-        printf("%f\n", 1000/(GameState.Delta * 1.0e2f));
+        // printf("%f\n", GameState.Delta * 1.0e2f);
+        // printf("%f\n", 1000/(GameState.Delta * 1.0e2f));
 
         LastTimeInMs = CurrentTimeInMs;
 
