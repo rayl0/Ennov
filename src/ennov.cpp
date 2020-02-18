@@ -1,40 +1,17 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <memory.h>
-#include "ennov.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "ennov_text.cpp"
 #include "ennov_math.h"
 #include "ennov_gl.cpp"
+#include "ennov.h"
+
+// TODO(rajat): Fix bug, Position of you win text depends upon numactive tiles, >= or ==
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
-void
-InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size)
-{
-    Areana->BaseAddress = BaseAddress;
-    Areana->Size = Size;
-    Areana->Used = 0;
-}
-
-u32
-CalculatePadding(u64 Address, u32 Align)
-{
-    u32 Padding = (Address % Align);
-    return (Padding == 0) ? 0 : (Align - Padding);
-}
-
-void*
-PushStruct_(game_areana* Areana, memory_index Size)
-{
-    Assert(Areana->Used + Size <= Areana->Size);
-    void* NewStruct = (Areana->BaseAddress + Areana->Used);
-    u64 Address = ((u64)(Areana->BaseAddress) + Areana->Used);
-    u32 Padding = CalculatePadding(Address, 8);
-    Areana->Used += Size + Padding;
-    return NewStruct;
-}
 
 game_file*(*PlatformLoadFile)(char*, void*(*)(game_areana*, memory_index), game_areana*);
 
@@ -77,6 +54,8 @@ struct breakout_game_state
     texture Textures[4];
     glm::mat4 Projection; // TODO(Rajat): Replace glm fast!
     renderer_data RendererData;
+    character_glyph* Glyphs;
+    text_rendering_data TextData;
     b32 Fired;
     vec2 Direction;
     rect Ball;
@@ -102,9 +81,12 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     if(!Memory->IsInitialized) {
         gladLoadGL();
 
+        InitializeFreeType();
+
         InitializeAreana(&State->GameStorage, Memory->PermanentStorage + sizeof(CurrentState), Memory->PermanentStorageSize - sizeof(CurrentState));
         InitializeAreana(&State->ScratchStorage, Memory->TransientStorage, Memory->TransientStorageSize);
         InitializeAreana(&State->AssestStorage, Memory->AssetMemory, Memory->AssetMemorySize);
+
         // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
         if(!CurrentState->HaveLoadState) {
             CurrentState->Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}};
@@ -131,7 +113,9 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
         CurrentState->RendererData = {};
 
-        CurrentState->RendererData.Projection = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f); // TODO(Rajat): Update projection with window size change!
+        CurrentState->RendererData.Projection = glm::ortho(0.0f, 800.0f, 600.0f, 00.0f, -1.0f, 1.0f); // TODO(Rajat): Update projection with window size change!
+        CurrentState->Projection = glm::ortho(0.0f, 800.0f, 600.0f, 00.0f); // TODO(Rajat): Update projection with window size change!
+
         InitRenderer(&CurrentState->RendererData, &State->ScratchStorage);
         CurrentState->BackgroundBitmap = LoadPixelsFrom("./background.jpg", &State->AssestStorage);
         CurrentState->BallBitmap = LoadPixelsFrom("./background.jpg", &State->AssestStorage);
@@ -144,7 +128,9 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->Textures[1] = CreateTexture(CurrentState->TileBitmap);
         CurrentState->Textures[2] = CreateTexture(CurrentState->PaddleBitmap);
 
-        CurrentState->RendererData.Projection = CurrentState->Projection;
+        CurrentState->Glyphs = LoadTTF("./s.ttf", 74, &State->AssestStorage);
+
+        CurrentState->TextData = {};
 
         Memory->IsInitialized = true;
     }
@@ -229,7 +215,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
-    uint32 NumActieTiles = 0;
+    u32 NumActieTiles = 0;
 
     // TODO(rajat): Add src clipping to the renderer
     DrawBatchRectangle(Batch, &CurrentState->Textures[0], {1, 1, 1, 1.0f}, NULL, {0, 0}, {800, 600});
@@ -270,13 +256,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
-    if(NumActieTiles == 0)
-    {
-        fprintf(stderr, "You Win!\n");
-        // Memory->IsInitialized = false;
-        CurrentState->HaveLoadState = false;
-    }
-
     if(Input->Button.Terminate.EndedDown)
     {
         CurrentState->HaveLoadState = true;
@@ -285,10 +264,45 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     }
 
     DrawBatchRectangle(Batch, &CurrentState->Textures[2], {1, 1, 1, 1}, NULL, Paddle->Pos, Paddle->Dimensions);
-    DrawBatchRectangle(Batch, &CurrentState->Textures[1], {1, 1, 1, 1}, NULL, Ball->Pos, Ball->Dimensions);
-
+    DrawBatchRectangle(Batch, &CurrentState->Textures[0], {1, 1, 1, 1}, NULL, Ball->Pos, Ball->Dimensions);
     FlushRenderer(Batch);
 
+    BeginText(&CurrentState->TextData, CurrentState->Glyphs, &CurrentState->Projection, &State->ScratchStorage);
+    const char* LiveString = "Lives: %i";
+    char Buffer[50];
+
+    sprintf(Buffer, LiveString, CurrentState->Lives);
+
+    RenderText(&CurrentState->TextData, Buffer, {0.0f, 10.0f},
+               0.5f, {1.f, 1.f, 1.f, 1.f});
+
+    const char* FpsString = "FPS: %u";
+    if((1000/(State->Delta * 1.0e2f)) >= 55.0f)
+        sprintf(Buffer, FpsString, 60);
+    else
+    {
+        sprintf(Buffer, FpsString, (u32)(1000/(State->Delta * 1.0e2f)));
+    }
+    // TODO(rajat): Might not render stuff like this
+    RenderText(&CurrentState->TextData, Buffer, {700, 570},
+               0.3f, {1.f, 1.f, 1.f, 1.f});
+
+    if(NumActieTiles == 0)
+    {
+        RenderText(&CurrentState->TextData, "You Win!", {250.0f, 300.0f}, 1.0f, {1.f, 1.f, 1.f, 1.f});
+        RenderText(&CurrentState->TextData, "Press Terminate to close", {190.0f, 384.0f}, 0.5f, {1.f, 1.f, 1.f, 1.f});
+        CurrentState->IsPaused = true;
+        CurrentState->Fired = false;
+    }
+    else
+    {
+        if(CurrentState->IsPaused)
+        {
+            RenderText(&CurrentState->TextData, "Paused!", {250, 300}, 1.0f, {1.f, 1.f, 1.f, 1.f});
+        }
+    }
+
+    EndText(&CurrentState->TextData);
     // sprite_batch Batch;
     // StartBatch(&Batch);
     // DrawRectangle(&Batch, Texture, Color, Pos, Dim, TextureClip);

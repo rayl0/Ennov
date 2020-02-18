@@ -16,7 +16,7 @@ extern "C" {
 
 #define global_variable static
 #define local_persist static
-#define internal static
+#define internal_ static
 
 typedef int8_t int8;
 typedef int16_t int16;

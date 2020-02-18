@@ -50,7 +50,7 @@ struct x11_state {
     bool32 Running;
 };
 
-internal Status
+internal_ Status
 X11ToggleFullScreen(Display* Display_, Window Window_)
 {
     XClientMessageEvent Event = {};
@@ -73,7 +73,7 @@ X11ToggleFullScreen(Display* Display_, Window Window_)
 
 }
 
-internal GLXFBConfig X11GetFrameBufferConfig(x11_state* State)
+internal_ GLXFBConfig X11GetFrameBufferConfig(x11_state* State)
 {
     GLint GlxAttributes[] = {
         GLX_X_RENDERABLE, True,
@@ -118,7 +118,7 @@ internal GLXFBConfig X11GetFrameBufferConfig(x11_state* State)
     return BestFb;
 }
 
-internal void X11Init(x11_state* State)
+internal_ void X11Init(x11_state* State)
 {
     // TODO(Rajat): Error checking and logging
     // TODO(Rajat): Separate Functionality
@@ -207,7 +207,7 @@ ToggleMaximize(Display* display, Window window)
                     (XEvent *)&Event);
 }
 
-internal void
+internal_ void
 X11ProcessButton(game_button_state* NewState, bool IsDown)
 {
   if(NewState->EndedDown != IsDown) {
@@ -216,7 +216,7 @@ X11ProcessButton(game_button_state* NewState, bool IsDown)
   }
 }
 
-internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_state* GameState)
+internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_state* GameState)
 {
 
     local_persist XEvent Event;
@@ -310,7 +310,7 @@ internal void X11ProcessEvents(x11_state* State, game_input* NewInput, game_stat
     }
 }
 
-internal game_file*
+internal_ game_file*
 PlatformLoadFile(char* File, void*(Alloc)(game_areana*, memory_index), game_areana* Areana)
 {
     if(Alloc)
@@ -335,7 +335,7 @@ PlatformLoadFile(char* File, void*(Alloc)(game_areana*, memory_index), game_area
 
 // NOTE(rajat): Adopt style used in this function and leave everything else
 // NOTE(rajat): Already configured spacemacs to use this style
-internal void*
+internal_ void*
 ThreadFunc(void* Arg)
 {
     for(;;)
@@ -433,6 +433,8 @@ main(int argc, char* argv[])
     // TODO(rajat): Not optimal way to doing this, will be replaced soon
     u32 ConfigBits = 0;
 
+    glEnable(GL_CULL_FACE);
+
     while (State.Running) {
         X11ProcessEvents(&State, NewInput, &GameState);
 
@@ -447,6 +449,7 @@ main(int argc, char* argv[])
         // GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input))dlsym(GameLibrary, "GameUpdateAndRender");
 
         GameUpdateAndRender(&GameMemory, &GameState, NewInput, &ConfigBits);
+        glCullFace(GL_BACK);
         glXSwapBuffers(State.Display_, State.Window_);
 
         if(ConfigBits == PlatformFullScreenToggle_BIT)
