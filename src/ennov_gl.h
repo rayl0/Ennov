@@ -44,8 +44,22 @@ DrawBatchRectangleEx(renderer_data *RenderData, texture *Texture, vec4 Color,
                      rect *SrcClip, vec2 Position, vec2 Dimension, u32 ShaderProgram);
 
 void
+DrawBatchRectangle(renderer_data *RenderData, texture *Texture, vec4 Color,
+                     rect *SrcClip, vec2 Position, vec2 Dimension);
+
+
+
+void
 FlushBatch(batch_data* Batch, u32 ShaderProgram, u32 VertexArray, u32 VertexBuffer);
 
 void
 BatchRenderRectangle(batch_data* Batch, texture *Texture, vec4 Color,
                      rect *SrcClip, vec2 Position, vec2 Dimension);
+
+void
+BatchRenderRectangleDx(batch_data* Batch, texture *Texture, vec4 Color,
+                       f32 x, f32 y, f32 w, f32 h, f32 s0, f32 t0, f32 s1, f32 t1);
+
+void
+DrawBatchRectangleDx(renderer_data* Data, texture* Texture, vec4 Color,
+                     f32 x, f32 y, f32 w, f32 h, f32 s0, f32 t0, f32 s1, f32 t1);

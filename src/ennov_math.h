@@ -1,7 +1,7 @@
 #if !defined(ENNOV_MATH_H)
 #include "ennov_platform.h"
 
-struct vec2 
+struct vec2
 {
   union {
     struct {
@@ -81,7 +81,7 @@ operator-(vec2& Vec1, vec2& Vec2)
 
 inline vec2
 operator+(vec2& Vec1, vec2& Vec2)
-{ 
+{
   vec2 Final;
   Final.x = Vec1.x + Vec2.x;
   Final.y = Vec2.y + Vec2.y;
@@ -90,8 +90,28 @@ operator+(vec2& Vec1, vec2& Vec2)
 
 struct rect
 {
-    vec2 Pos;
-    vec2 Dimensions;
+    union
+    {
+        struct
+        {
+            vec2 Pos;
+            vec2 Dimensions;
+        };
+        struct
+        {
+            vec2 Min;
+            vec2 Max;
+        };
+        struct
+        {
+            vec2 p;
+            vec2 d;
+        };
+        struct
+        {
+            f32 x, y, w, h;
+        };
+    };
 };
 
 struct rect_projection_data

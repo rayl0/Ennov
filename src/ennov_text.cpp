@@ -5,6 +5,12 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#define STB_RECT_PACK_IMPLEMENTATION
+#include "stb_rect_pack.h"
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
 #include <string.h>
 
 #include "glm/glm.hpp"
@@ -23,6 +29,10 @@ struct text_rendering_data
     u32 VertexArray;
     u32 DynamicVertexBuffer;
 };
+
+global_variable texture FontTexture;
+global_variable b32 IsInitialized = 0;
+global_variable renderer_data *Renderer = NULL;
 
 void
 InitializeFreeType()
@@ -80,6 +90,60 @@ LoadTTF(char* File, u32 Size, game_areana* Areana)
 
     FT_Done_Face(FtFace);
     return Characters;
+}
+
+// STUDY(rajat): stb_truetype and stb_textedit
+
+u8 TTFBuffer[512*512];
+stbtt_packedchar CharacterData[96];
+
+texture
+LoadttfTexture(u8* FileMemory, f32 Size)
+{
+    stbtt_pack_context PackCtx;
+    if(stbtt_PackBegin(&PackCtx, TTFBuffer, 512, 512, 0, 1, NULL)) printf("hurrah!");
+    stbtt_PackSetOversampling(&PackCtx, 2, 2);
+    stbtt_PackFontRange(&PackCtx, FileMemory, 0, Size, 32, 96, CharacterData);
+    stbtt_PackEnd(&PackCtx);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    texture NewTexture = CreateTextureEx(TTFBuffer, GL_RED, 512, 512, GL_RED);
+    return NewTexture;
+}
+
+void
+BeginText(renderer_data *RenderData, u8 *FontFileMemory, f32 Size)
+{
+    if(!IsInitialized)
+    {
+        Renderer = RenderData;
+        FontTexture = LoadttfTexture(FontFileMemory, Size);
+        IsInitialized = true;
+    }
+}
+
+void
+DrawString(char *String, f32 x, f32 y, f32 Scale, vec4 Color)
+{
+    Assert(IsInitialized != NULL);
+
+    while(*String)
+    {
+        if(*String >= 32 && *String < 128)
+        {
+            stbtt_aligned_quad q;
+            stbtt_GetPackedQuad(CharacterData, 512, 512, *String - 32, &x, &y, &q, 2);
+            fprintf(stderr, "%f, %f, %f, %f\n", q.x0, q.y0, q.t0, q.t1);
+            DrawBatchRectangleDx(Renderer, &FontTexture, Color,
+                                 q.x0, q.y0, q.x1 - q.x0, q.y1 - q.y0, q.s0, q.t0, q.s1, q.t1);
+        }
+        ++String;
+    }
+}
+
+void
+EndText()
+{
 }
 
 void

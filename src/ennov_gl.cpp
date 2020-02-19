@@ -229,8 +229,8 @@ CreateBatch(game_areana* Areana)
 void FlushBatch(batch_data* Batch, u32 ShaderProgram, u32 VertexArray, u32 VertexBuffer);
 
 void
-BatchRenderRectangle(batch_data* Batch, texture *Texture, vec4 Color,
-                     rect *SrcClip, vec2 Position, vec2 Dimension)
+BatchRenderRectangleDx(batch_data* Batch, texture *Texture, vec4 Color,
+                       f32 x, f32 y, f32 w, f32 h, f32 s0, f32 t0, f32 s1, f32 t1)
 {
     if(Batch)
     {
@@ -258,10 +258,10 @@ BatchRenderRectangle(batch_data* Batch, texture *Texture, vec4 Color,
 
         glm::mat4 Model = glm::mat4(1.0f);
 
-        Model = glm::translate(Model, glm::vec3(Position.x, Position.y, 0));
-        Model = glm::scale(Model, glm::vec3(Dimension.x, Dimension.y, 0));
+        Model = glm::translate(Model, glm::vec3(x, y, 0));
+        Model = glm::scale(Model, glm::vec3(w, h, 0));
 
-        glm::vec4 TransformVertexData[6] = {
+        glm::vec4 tvd[6] = {
             {0.0f, 1.0f, 0.0f, 1.0f},
             {1.0f, 0.0f, 0.0f, 1.0f},
             {0.0f, 0.0f, 0.0f, 1.0f},
@@ -272,29 +272,16 @@ BatchRenderRectangle(batch_data* Batch, texture *Texture, vec4 Color,
         };
 
         for(int i = 0; i < 6; ++i) {
-            TransformVertexData[i] = Model * TransformVertexData[i];
+            tvd[i] = Model * tvd[i];
         }
 
-        vec2 TextureCord[6] = {
-            {0.0f, 1.0f},
-            {1.0f, 0.0f},
-            {0.0f, 0.0f},
-
-            {0.0f, 1.0f},
-            {1.0f, 1.0f},
-            {1.0f, 0.0f}
-        };
-
-        glm::vec4* tvd = TransformVertexData;
-        vec2* tc = TextureCord;
-
         f32 VertexData[54] = {
-            tvd[0].x, tvd[0].y, tc[0].x, tc[0].y, Color.r, Color.g, Color.b, Color.a, Index,
-            tvd[1].x, tvd[1].y, tc[1].x, tc[1].y, Color.r, Color.g, Color.b, Color.a, Index,
-            tvd[2].x, tvd[2].y, tc[2].x, tc[2].y, Color.r, Color.g, Color.b, Color.a, Index,
-            tvd[3].x, tvd[3].y, tc[3].x, tc[3].y, Color.r, Color.g, Color.b, Color.a, Index,
-            tvd[4].x, tvd[4].y, tc[4].x, tc[4].y, Color.r, Color.g, Color.b, Color.a, Index,
-            tvd[5].x, tvd[5].y, tc[5].x, tc[5].y, Color.r, Color.g, Color.b, Color.a, Index
+            tvd[0].x, tvd[0].y, s0, t1, Color.r, Color.g, Color.b, Color.a, Index,
+            tvd[1].x, tvd[1].y, s1, t0, Color.r, Color.g, Color.b, Color.a, Index,
+            tvd[2].x, tvd[2].y, s0, t0, Color.r, Color.g, Color.b, Color.a, Index,
+            tvd[3].x, tvd[3].y, s0, t1, Color.r, Color.g, Color.b, Color.a, Index,
+            tvd[4].x, tvd[4].y, s1, t1, Color.r, Color.g, Color.b, Color.a, Index,
+            tvd[5].x, tvd[5].y, s1, t0, Color.r, Color.g, Color.b, Color.a, Index
         };
 
         for(int i = 0; i < 54; ++i) {
@@ -302,6 +289,52 @@ BatchRenderRectangle(batch_data* Batch, texture *Texture, vec4 Color,
         }
 
         BackBatch->VertexBufferCurrentPos += 54;
+    }
+}
+
+void
+DrawBatchRectangleDx(renderer_data* RenderData, texture* Texture, vec4 Color,
+                     f32 x, f32 y, f32 w, f32 h, f32 s0, f32 t0, f32 s1, f32 t1)
+{
+    if(RenderData) {
+        // TODO(rajat): Important map color values to 0.0f/1.0f
+        // NOTE(rajat): Always try to minimize work postpone, do it now to decrease complexity
+
+        if(RenderData->Batch.NumBindTextureSlots == RenderData->NumTextureSlots ||
+           RenderData->Batch.VertexBufferCurrentPos + 54 >= RenderData->Batch.VertexBufferSize)
+        {
+            FlushBatch(&RenderData->Batch, RenderData->Batch.ShaderProgram, RenderData->VertexArray, RenderData->DynamicVertexBuffer);
+            RenderData->Batch.NumBindTextureSlots = 0;
+            RenderData->Batch.VertexBufferCurrentPos = 0;
+
+            for(int i = 0; i < 32; i++)
+            {
+                RenderData->Batch.TextureSlots[i] = -1;
+            }
+        }
+        BatchRenderRectangleDx(&RenderData->Batch, Texture, Color, x, y, w, h, s0, t0, s1, t1);
+
+    }
+}
+
+void
+BatchRenderRectangle(batch_data* Batch, texture *Texture, vec4 Color,
+                     rect *SrcClip, vec2 Position, vec2 Dimension)
+{
+    if(Batch)
+    {
+        if(Texture && SrcClip)
+        {
+            rect r = *SrcClip;
+            vec2 d = {Texture->Width, Texture->Height};
+            BatchRenderRectangleDx(Batch, Texture, Color, Position.x, Position.y,
+                                   Dimension.x, Dimension.y, r.x/d.x, r.y/r.y,
+                                   (r.x + r.w)/d.x, (r.y + r.h)/d.y);
+            return;
+        }
+
+        BatchRenderRectangleDx(Batch, Texture, Color, Position.x, Position.y,
+                               Dimension.x, Dimension.y, 0, 0, 1, 1);
     }
 }
 

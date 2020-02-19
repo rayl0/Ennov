@@ -55,6 +55,7 @@ struct breakout_game_state
     glm::mat4 Projection; // TODO(Rajat): Replace glm fast!
     renderer_data RendererData;
     character_glyph* Glyphs;
+    game_file *TextFontFile;
     text_rendering_data TextData;
     b32 Fired;
     vec2 Direction;
@@ -89,8 +90,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
         // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
         if(!CurrentState->HaveLoadState) {
-            CurrentState->Paddle = {{0.0f, 550.0f}, {100.0f, 50.0f}};
-            CurrentState->Ball = {{CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f}, {20.0f, 20.0f}};
+            CurrentState->Paddle = {0.0f, 550.0f, 100.0f, 50.0f};
+            CurrentState->Ball = {CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f, 20.0f, 20.0f};
             CurrentState->Direction = {1.0f, 2.0f};
 
             CurrentState->Fired = false;
@@ -131,6 +132,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->Glyphs = LoadTTF("./s.ttf", 74, &State->AssestStorage);
 
         CurrentState->TextData = {};
+        CurrentState->TextFontFile = (game_file*)PlatformLoadFile("./s.ttf", PushStruct_, &State->AssestStorage);
 
         Memory->IsInitialized = true;
     }
@@ -258,13 +260,22 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
     if(Input->Button.Terminate.EndedDown)
     {
-        CurrentState->HaveLoadState = true;
+        if(NumActieTiles == 0)
+            CurrentState->HaveLoadState = false;
+        else
+            CurrentState->HaveLoadState = true;
         Ball->Pos = {Paddle->Pos.x + Paddle->Dimensions.x / 2, 550.0f - Ball->Dimensions.y};
         CurrentState->Fired = false;
     }
 
-    DrawBatchRectangle(Batch, &CurrentState->Textures[2], {1, 1, 1, 1}, NULL, Paddle->Pos, Paddle->Dimensions);
+    rect SrcClip = {100, 100, 100, 100};
+    DrawBatchRectangle(Batch, &CurrentState->Textures[2], {1, 1, 1, 1}, &SrcClip, Paddle->Pos, Paddle->Dimensions);
     DrawBatchRectangle(Batch, &CurrentState->Textures[0], {1, 1, 1, 1}, NULL, Ball->Pos, Ball->Dimensions);
+
+    BeginText(Batch, (u8*)CurrentState->TextFontFile->Data, 32);
+    DrawString("Hello World", 200, 30, 1, {1, 1, 1, 1});
+    DrawString("My Name is Rajat", 100, 300, 1, {1, 0.5, 1, 1});
+
     FlushRenderer(Batch);
 
     BeginText(&CurrentState->TextData, CurrentState->Glyphs, &CurrentState->Projection, &State->ScratchStorage);

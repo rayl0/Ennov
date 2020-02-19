@@ -412,7 +412,7 @@ main(int argc, char* argv[])
 
     GameState.Interface.PlatformLoadFile = PlatformLoadFile;
 
-    GameLibrary = dlopen("./ennov.so", RTLD_NOW);
+    GameLibrary = dlopen("./ennov.so", RTLD_LAZY);
     GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input, u32 *ConfigBits))dlsym(GameLibrary, "GameUpdateAndRender");
 
     timespec LastTime;
