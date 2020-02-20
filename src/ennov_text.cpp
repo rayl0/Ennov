@@ -32,7 +32,7 @@ struct text_rendering_data
 
 global_variable texture FontTexture;
 global_variable b32 IsInitialized = 0;
-global_variable renderer_data *Renderer = NULL;
+global_variable text_rendering_data *Renderer = NULL;
 
 void
 InitializeFreeType()
@@ -94,25 +94,25 @@ LoadTTF(char* File, u32 Size, game_areana* Areana)
 
 // STUDY(rajat): stb_truetype and stb_textedit
 
-u8 TTFBuffer[512*512];
+u8 TTFBuffer[2048 * 2048];
 stbtt_packedchar CharacterData[96];
 
 texture
 LoadttfTexture(u8* FileMemory, f32 Size)
 {
     stbtt_pack_context PackCtx;
-    if(stbtt_PackBegin(&PackCtx, TTFBuffer, 512, 512, 0, 1, NULL)) printf("hurrah!");
-    stbtt_PackSetOversampling(&PackCtx, 2, 2);
+    if(stbtt_PackBegin(&PackCtx, TTFBuffer, 2048, 2048, 0, 0, NULL)) printf("hurrah!");
+    stbtt_PackSetOversampling(&PackCtx, 4, 4);
     stbtt_PackFontRange(&PackCtx, FileMemory, 0, Size, 32, 96, CharacterData);
     stbtt_PackEnd(&PackCtx);
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    texture NewTexture = CreateTextureEx(TTFBuffer, GL_RED, 512, 512, GL_RED);
+    texture NewTexture = CreateTextureEx(TTFBuffer, GL_RED, 2048, 2048, GL_RED);
     return NewTexture;
 }
 
 void
-BeginText(renderer_data *RenderData, u8 *FontFileMemory, f32 Size)
+BeginText(text_rendering_data *RenderData, u8 *FontFileMemory, f32 Size)
 {
     if(!IsInitialized)
     {
@@ -121,6 +121,8 @@ BeginText(renderer_data *RenderData, u8 *FontFileMemory, f32 Size)
         IsInitialized = true;
     }
 }
+
+void EndText(text_rendering_data *Data);
 
 void
 DrawString(char *String, f32 x, f32 y, f32 Scale, vec4 Color)
@@ -131,12 +133,21 @@ DrawString(char *String, f32 x, f32 y, f32 Scale, vec4 Color)
     {
         if(*String >= 32 && *String < 128)
         {
+            // TODO(rajat): Store and calculate them when loading fonts and create character mapping to reterive correct one
             stbtt_aligned_quad q;
-            stbtt_GetPackedQuad(CharacterData, 512, 512, *String - 32, &x, &y, &q, 2);
-            fprintf(stderr, "%f, %f, %f, %f\n", q.x0, q.y0, q.t0, q.t1);
-            DrawBatchRectangleDx(Renderer, &FontTexture, Color,
-                                 q.x0, q.y0, q.x1 - q.x0, q.y1 - q.y0, q.s0, q.t0, q.s1, q.t1);
+            stbtt_GetPackedQuad(CharacterData, 2048, 2048, *String - 32, &x, &y, &q, 0);
+
+            if(Renderer->Batch.NumBindTextureSlots == Renderer->NumTextureSlots || Renderer->Batch.VertexBufferCurrentPos + 54 >
+               Renderer->Batch.VertexBufferSize)
+            {
+                EndText(Renderer);
+            }
+
+            // TODO(rajat): Scaling of characters, Scale value is ignored
+            BatchRenderRectangleDx(&Renderer->Batch, &FontTexture, Color,
+                                   q.x0, q.y0, (q.x1 - q.x0), (q.y1 - q.y0), q.s0, q.t0, q.s1, q.t1);
         }
+
         ++String;
     }
 }
@@ -251,7 +262,6 @@ BeginText(text_rendering_data* TextData, character_glyph* Characters, glm::mat4 
     }
 }
 
-void EndText(text_rendering_data *Data);
 
 void
 RenderText(text_rendering_data* Data, const char* String, vec2 Position, f32 Scale, vec4 Color)

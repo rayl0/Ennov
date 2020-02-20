@@ -272,20 +272,22 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     DrawBatchRectangle(Batch, &CurrentState->Textures[2], {1, 1, 1, 1}, &SrcClip, Paddle->Pos, Paddle->Dimensions);
     DrawBatchRectangle(Batch, &CurrentState->Textures[0], {1, 1, 1, 1}, NULL, Ball->Pos, Ball->Dimensions);
 
-    BeginText(Batch, (u8*)CurrentState->TextFontFile->Data, 32);
-    DrawString("Hello World", 200, 30, 1, {1, 1, 1, 1});
-    DrawString("My Name is Rajat", 100, 300, 1, {1, 0.5, 1, 1});
-
     FlushRenderer(Batch);
 
     BeginText(&CurrentState->TextData, CurrentState->Glyphs, &CurrentState->Projection, &State->ScratchStorage);
     const char* LiveString = "Lives: %i";
     char Buffer[50];
 
+    // NOTE(rajat): It will be a good idea to replace this text renderer pointing
+    // thing with an actual global backend renderer
+    BeginText(&CurrentState->TextData, (u8*)CurrentState->TextFontFile->Data, 32);
+    DrawString("Hello World", 200, 30, 1.0f, {1, 1, 1, 1});
+    DrawString("My Name is Rajat", 100, 300, 2.0f, {1, 0.5, 1, 1});
+
     sprintf(Buffer, LiveString, CurrentState->Lives);
 
-    RenderText(&CurrentState->TextData, Buffer, {0.0f, 10.0f},
-               0.5f, {1.f, 1.f, 1.f, 1.f});
+    DrawString(Buffer, 0.0f, 20.0f,
+               1.0f, {1.f, 1.f, 1.f, 1.f});
 
     const char* FpsString = "FPS: %u";
     if((1000/(State->Delta * 1.0e2f)) >= 55.0f)
@@ -295,13 +297,13 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         sprintf(Buffer, FpsString, (u32)(1000/(State->Delta * 1.0e2f)));
     }
     // TODO(rajat): Might not render stuff like this
-    RenderText(&CurrentState->TextData, Buffer, {700, 570},
-               0.3f, {1.f, 1.f, 1.f, 1.f});
+    DrawString(Buffer, 700, 570,
+               1.0f, {1.f, 1.f, 1.f, 1.f});
 
     if(NumActieTiles == 0)
     {
-        RenderText(&CurrentState->TextData, "You Win!", {250.0f, 300.0f}, 1.0f, {1.f, 1.f, 1.f, 1.f});
-        RenderText(&CurrentState->TextData, "Press Terminate to close", {190.0f, 384.0f}, 0.5f, {1.f, 1.f, 1.f, 1.f});
+        DrawString("You Win!", 250.0f, 300.0f, 1.0f, {1.f, 1.f, 1.f, 1.f});
+        DrawString("Press Terminate to close", 190.0f, 384.0f, 0.5f, {1.f, 1.f, 1.f, 1.f});
         CurrentState->IsPaused = true;
         CurrentState->Fired = false;
     }
@@ -309,7 +311,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     {
         if(CurrentState->IsPaused)
         {
-            RenderText(&CurrentState->TextData, "Paused!", {250, 300}, 1.0f, {1.f, 1.f, 1.f, 1.f});
+            DrawString("Paused!", 150, 150, 2.0f, {1.f, 1.f, 1.f, 1.f});
         }
     }
 
