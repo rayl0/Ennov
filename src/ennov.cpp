@@ -118,10 +118,10 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->Projection = glm::ortho(0.0f, 800.0f, 600.0f, 00.0f); // TODO(Rajat): Update projection with window size change!
 
         InitRenderer(&CurrentState->RendererData, &State->ScratchStorage);
-        CurrentState->BackgroundBitmap = LoadPixelsFrom("./background.jpg", &State->AssestStorage);
-        CurrentState->BallBitmap = LoadPixelsFrom("./background.jpg", &State->AssestStorage);
-        CurrentState->PaddleBitmap = LoadPixelsFrom("./paddle.png", &State->AssestStorage);
-        CurrentState->TileBitmap = LoadPixelsFrom("./container.png", &State->AssestStorage);
+        CurrentState->BackgroundBitmap = LoadPixelsFrom("assets/background.jpg", &State->AssestStorage);
+        CurrentState->BallBitmap = LoadPixelsFrom("assets/background.jpg", &State->AssestStorage);
+        CurrentState->PaddleBitmap = LoadPixelsFrom("assets/paddle.png", &State->AssestStorage);
+        CurrentState->TileBitmap = LoadPixelsFrom("assets/container.png", &State->AssestStorage);
 
         // asset_work_queue WorkQueue;
 
@@ -129,10 +129,10 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->Textures[1] = CreateTexture(CurrentState->TileBitmap);
         CurrentState->Textures[2] = CreateTexture(CurrentState->PaddleBitmap);
 
-        CurrentState->Glyphs = LoadTTF("./s.ttf", 74, &State->AssestStorage);
+        CurrentState->Glyphs = LoadTTF("assets/s.ttf", 74, &State->AssestStorage);
 
         CurrentState->TextData = {};
-        CurrentState->TextFontFile = (game_file*)PlatformLoadFile("./s.ttf", PushStruct_, &State->AssestStorage);
+        CurrentState->TextFontFile = (game_file*)PlatformLoadFile("assets/s.ttf", PushStruct_, &State->AssestStorage);
 
         Memory->IsInitialized = true;
     }
