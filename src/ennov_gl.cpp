@@ -1,8 +1,13 @@
+#include "ennov_platform.h"
+
+#if ENNOV_PLATFORM_LINUX
 #include "glad/glad.c"
+#else
+#include <GLES2/gl2.h>
+#endif
 
 #include "ennov.h"
 #include "ennov_math.h"
-#include "ennov_platform.h"
 #include "ennov_gl.h"
 
 #include <memory.h>
@@ -152,8 +157,10 @@ InitRenderer(renderer_data* RenderData, game_areana* Areana)
 
         RenderData->Areana = Areana;
 
+        #if ENNOV_PLATFORM_LINUX
         glGenVertexArrays(1, &RenderData->VertexArray);
         glBindVertexArray(RenderData->VertexArray);
+        #endif
 
         glGenBuffers(1, &RenderData->DynamicVertexBuffer);
         glBindBuffer(GL_ARRAY_BUFFER, RenderData->DynamicVertexBuffer);
@@ -326,7 +333,7 @@ BatchRenderRectangle(batch_data* Batch, texture *Texture, vec4 Color,
         if(Texture && SrcClip)
         {
             rect r = *SrcClip;
-            vec2 d = {Texture->Width, Texture->Height};
+            vec2 d = {(f32)Texture->Width, (f32)Texture->Height};
             BatchRenderRectangleDx(Batch, Texture, Color, Position.x, Position.y,
                                    Dimension.x, Dimension.y, r.x/d.x, r.y/r.y,
                                    (r.x + r.w)/d.x, (r.y + r.h)/d.y);
@@ -384,7 +391,9 @@ FlushBatch(batch_data* Batch, u32 ShaderProgram, u32 VertexArray, u32 VertexBuff
 
         glUseProgram(ShaderProgram);
 
+        #if ENNOV_PLATFORM_LINUX
         glBindVertexArray(VertexArray);
+        #endif
         glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
 
         // TODO(rajat): Should use persistent mapping for supported platforms

@@ -2,9 +2,6 @@
 #include "ennov_gl.h"
 #include "glad/glad.h"
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
-
 #define STB_RECT_PACK_IMPLEMENTATION
 #include "stb_rect_pack.h"
 
@@ -15,9 +12,6 @@
 
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
-
-FT_Library FtLib;
-FT_Face FtFace;
 
 struct text_rendering_data
 {
@@ -33,12 +27,6 @@ struct text_rendering_data
 global_variable texture FontTexture;
 global_variable b32 IsInitialized = 0;
 global_variable text_rendering_data *Renderer = NULL;
-
-void
-InitializeFreeType()
-{
-    FT_Init_FreeType(&FtLib);
-}
 
 void
 InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size)
@@ -59,37 +47,11 @@ void*
 PushStruct_(game_areana* Areana, memory_index Size)
 {
     Assert(Areana->Used + Size <= Areana->Size);
-    void* NewStruct = (Areana->BaseAddress + Areana->Used);
+    void* NewStruct = ((char*)Areana->BaseAddress + Areana->Used);
     u64 Address = ((u64)(Areana->BaseAddress) + Areana->Used);
     u32 Padding = CalculatePadding(Address, 8);
     Areana->Used += Size + Padding;
     return NewStruct;
-}
-
-character_glyph*
-LoadTTF(char* File, u32 Size, game_areana* Areana)
-{
-    if(FT_New_Face(FtLib, File, 0, &FtFace)) Assert(0);
-    FT_Set_Pixel_Sizes(FtFace, 0, Size);
-
-    character_glyph* Characters = (character_glyph*)PushStruct_(Areana, 128 * sizeof(character_glyph));
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    for(int i = 0; i < 128; i++)
-    {
-        if(FT_Load_Char(FtFace, i, FT_LOAD_RENDER) == 0)
-        {
-            Characters[i].TextureId = CreateTextureEx(FtFace->glyph->bitmap.buffer, GL_RED, FtFace->glyph->bitmap.width, FtFace->glyph->bitmap.rows, GL_RED);
-            Characters[i].Width = FtFace->glyph->bitmap.width;
-            Characters[i].Height = FtFace->glyph->bitmap.rows;
-            Characters[i].Bearing = {FtFace->glyph->bitmap_left, FtFace->glyph->bitmap_top};
-            Characters[i].Advance = FtFace->glyph->advance.x;
-        }
-        // TODO(rajat): Store num character extracted
-    }
-
-    FT_Done_Face(FtFace);
-    return Characters;
 }
 
 // STUDY(rajat): stb_truetype and stb_textedit
@@ -259,40 +221,6 @@ BeginText(text_rendering_data* TextData, character_glyph* Characters, glm::mat4 
     else
     {
         // TODO(rajat): logging
-    }
-}
-
-
-void
-RenderText(text_rendering_data* Data, const char* String, vec2 Position, f32 Scale, vec4 Color)
-{
-    Assert(String != NULL);
-    Assert(Data != NULL);
-
-    if(Data->IsInitialized)
-    {
-        for(int i = 0; i < strlen(String); i++)
-        {
-            f32 x = Position.x + Data->Characters[String[i]].Bearing.x * Scale;
-            f32 y = Position.y +
-                 (Data->Characters[String['H']].Bearing.y - Data->Characters[String[i]].Bearing.y) * Scale;
-            f32 w = Data->Characters[String[i]].Width * Scale;
-            f32 h = Data->Characters[String[i]].Height * Scale;
-
-            if(Data->Batch.NumBindTextureSlots == Data->NumTextureSlots || Data->Batch.VertexBufferCurrentPos + 54 >
-                Data->Batch.VertexBufferSize)
-            {
-                EndText(Data);
-            }
-
-            BatchRenderRectangle(&Data->Batch, &Data->Characters[String[i]].TextureId, Color, NULL, {x, y}, {w, h});
-
-            Position.x += (Data->Characters[String[i]].Advance >> 6) * Scale;
-        }
-    }
-    else
-    {
-        // TODO(rajat): Logging!
     }
 }
 

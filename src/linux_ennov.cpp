@@ -32,8 +32,8 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 
-#define MEGABYTES_TO_BTYES(i) \
-    (i * 1024 * 1024)
+
+
 
 typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
 
@@ -125,6 +125,7 @@ internal_ void X11Init(x11_state* State)
     State->Display_ = XOpenDisplay(NULL);
     State->Screen_ = DefaultScreenOfDisplay(State->Display_);
     State->ScreenID = DefaultScreen(State->Display_);
+
 
     GLXFBConfig FBConfig = X11GetFrameBufferConfig(State);
 

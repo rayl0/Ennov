@@ -1,4 +1,8 @@
 /build
 /run.sh
-/android
 /assets
+/src/glm/doc
+*.android
+*.gradle
+*.cxx
+*build

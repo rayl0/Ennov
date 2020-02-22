@@ -47,14 +47,14 @@ struct breakout_game_state
 {
     b32 HaveLoadState;
     b32 IsInitialized;
-    loaded_bitmap* BackgroundBitmap;
-    loaded_bitmap* PaddleBitmap;
-    loaded_bitmap* BallBitmap;
-    loaded_bitmap* TileBitmap;
+    loaded_bitmap *BackgroundBitmap;
+    loaded_bitmap *PaddleBitmap;
+    loaded_bitmap *BallBitmap;
+    loaded_bitmap *TileBitmap;
     texture Textures[4];
     glm::mat4 Projection; // TODO(Rajat): Replace glm fast!
     renderer_data RendererData;
-    character_glyph* Glyphs;
+    character_glyph *Glyphs;
     game_file *TextFontFile;
     text_rendering_data TextData;
     b32 Fired;
@@ -76,15 +76,21 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
     //  OpenGLInitContext({State->ContextAttribs.Width, State->ContextAttribs.Height});
     // DrawRectangle(draw_attribs);
+    #if ENNOV_PLATFORM_LINUX
+    printf("Running on Linux");
+    #endif
+
+    #if ENNOV_PLATFORM_ANDROID
+    #endif
 
     breakout_game_state* CurrentState = (breakout_game_state*)Memory->PermanentStorage;
     PlatformLoadFile = State->Interface.PlatformLoadFile;
     if(!Memory->IsInitialized) {
+        #if ENNOV_PLATFORM_LINUX
         gladLoadGL();
+        #endif
 
-        InitializeFreeType();
-
-        InitializeAreana(&State->GameStorage, Memory->PermanentStorage + sizeof(CurrentState), Memory->PermanentStorageSize - sizeof(CurrentState));
+        InitializeAreana(&State->GameStorage, (char*)Memory->PermanentStorage + sizeof(CurrentState), Memory->PermanentStorageSize - sizeof(CurrentState));
         InitializeAreana(&State->ScratchStorage, Memory->TransientStorage, Memory->TransientStorageSize);
         InitializeAreana(&State->AssestStorage, Memory->AssetMemory, Memory->AssetMemorySize);
 
@@ -128,8 +134,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->Textures[0] = CreateTexture(CurrentState->BackgroundBitmap);
         CurrentState->Textures[1] = CreateTexture(CurrentState->TileBitmap);
         CurrentState->Textures[2] = CreateTexture(CurrentState->PaddleBitmap);
-
-        CurrentState->Glyphs = LoadTTF("assets/s.ttf", 74, &State->AssestStorage);
 
         CurrentState->TextData = {};
         CurrentState->TextFontFile = (game_file*)PlatformLoadFile("assets/s.ttf", PushStruct_, &State->AssestStorage);

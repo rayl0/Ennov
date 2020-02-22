@@ -8,6 +8,9 @@ extern "C" {
 #include <stdint.h>
 #include <stdlib.h>
 
+#define MEGABYTES_TO_BTYES(i)                   \
+    (i * 1024 * 1024)
+
 #ifdef ENNOV_DEBUG
 #define Assert(Expression) {if(!(Expression)){ fprintf(stderr, "Assertion failed: %s\n", #Expression ); *(char*)0 = 1; }}
 #else
@@ -47,6 +50,26 @@ typedef double real64;
 
 typedef real32 f32;
 typedef real64 f64;
+
+// Platform specific defines
+// STUDY(Rajat): Various defines by platforms
+#define ENNOV_PLATFORM_LINUX 0
+#define ENNOV_PLATFORM_ANDROID 0
+
+// TODO(rajat): Proper platforms defines should be used
+#if defined(linux) || defined(__linux) || defined(__linux__)
+    #undef ENNOV_PLATFORM_LINUX
+    #define ENNOV_PLATFORM_LINUX 1
+#endif
+#if defined(ANDROID) || defined(__ANDROID__)
+    #undef ENNOV_PLATFORM_ANDROID
+    #define ENNOV_PLATFORM_ANDROID 1
+
+    #if ENNOV_PLATFORM_LINUX
+    #undef ENNOV_PLATFORM_LINUX
+    #define ENNOV_PLATFORM_LINUX 0
+    #endif
+#endif
 
 // TODO(Rajat): Might want to replace it in future
 
