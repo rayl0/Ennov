@@ -63,7 +63,7 @@ texture
 LoadttfTexture(u8* FileMemory, f32 Size)
 {
     stbtt_pack_context PackCtx;
-    if(stbtt_PackBegin(&PackCtx, TTFBuffer, 2048, 2048, 0, 0, NULL)) printf("hurrah!");
+    stbtt_PackBegin(&PackCtx, TTFBuffer, 2048, 2048, 0, 0, NULL);
     stbtt_PackSetOversampling(&PackCtx, 4, 4);
     stbtt_PackFontRange(&PackCtx, FileMemory, 0, Size, 32, 96, CharacterData);
     stbtt_PackEnd(&PackCtx);
@@ -87,13 +87,13 @@ BeginText(text_rendering_data *RenderData, u8 *FontFileMemory, f32 Size)
 void EndText(text_rendering_data *Data);
 
 void
-DrawString(char *String, f32 x, f32 y, f32 Scale, vec4 Color)
+DrawString(const char *String, f32 x, f32 y, f32 Scale, vec4 Color)
 {
-    Assert(IsInitialized != NULL);
+    Assert(IsInitialized != false);
 
     while(*String)
     {
-        if(*String >= 32 && *String < 128)
+        if(*String >= 32 && (int)*String < 128)
         {
             // TODO(rajat): Store and calculate them when loading fonts and create character mapping to reterive correct one
             stbtt_aligned_quad q;
@@ -129,11 +129,11 @@ BeginText(text_rendering_data* TextData, character_glyph* Characters, glm::mat4 
     {
         TextData->IsInitialized = true;
 
-        Assert(Characters != NULL);
+        // Assert(Characters != NULL);
         TextData->Characters = Characters; // TODO(rajat): Make sure characters are read only
 
         TextData->Batch = CreateBatch(Areana);
-        char* VertexShaderSource = {R"(
+        const char* VertexShaderSource = {R"(
              #version 420 core
 
              layout(location = 0) in vec4 Position;
@@ -158,7 +158,7 @@ BeginText(text_rendering_data* TextData, character_glyph* Characters, glm::mat4 
 
         // NOTE(rajat): Be careful with names in shaders make sure to have same names
 
-        char* FragmentShaderSource = {R"(
+        const char* FragmentShaderSource = {R"(
              #version 420 core
 
              out vec4 OutputColor;

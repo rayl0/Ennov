@@ -37,8 +37,8 @@ endif(ENNOV_DEBUG)
 
 # All build options for linux
 if(ENNOV_PLATFORM_LINUX)
-  set(ENNOV_BUILD_OPTIONS ${ENNOV_BUILD_OPTIONS})
-  set(ENNOV_LIB_TYPE SHARED)
+  set(ENNOV_BUILD_OPTIONS ${ENNOV_BUILD_OPTIONS} -fno-rtti)
+  set(ENNOV_LIB_TYPE STATIC)
 endif()
 
 # All build options for Android
@@ -64,10 +64,10 @@ if(ENNOV_PLATFORM_LINUX)
 
   add_executable(linux_ennov ${ENNOV_MAIN_SOURCE_FILE})
 
-  target_link_libraries(linux_ennov PUBLIC X11 GL GLX pthread dl glm::glm)
+  target_link_libraries(linux_ennov PUBLIC X11 GL GLX pthread dl glm::glm ennov m)
   target_include_directories(linux_ennov PUBLIC src/)
   target_compile_options(linux_ennov PUBLIC ${ENNOV_BUILD_OPTIONS})
-  target_compile_features(linux_ennov PUBLIC c_std_99 cxx_std_98)
+  target_compile_features(linux_ennov PUBLIC c_std_99 cxx_std_11)
 endif()
 
 add_library(ennov ${ENNOV_LIB_TYPE} src/ennov.cpp)

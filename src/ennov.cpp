@@ -4,19 +4,18 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "ennov_text.cpp"
+#include "ennov_platform.h"
 #include "ennov_math.h"
 #include "ennov_gl.cpp"
+#include "ennov_ui.cpp"
 #include "ennov.h"
 
 // TODO(rajat): Fix bug, Position of you win text depends upon numactive tiles, >= or ==
-
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-game_file*(*PlatformLoadFile)(char*, void*(*)(game_areana*, memory_index), game_areana*);
-
 loaded_bitmap*
-LoadPixelsFrom(char* FileName, game_areana* Areana)
+LoadPixelsFrom(const char* FileName, game_areana* Areana)
 {
     game_file* File = (game_file*)PlatformLoadFile(FileName, PushStruct_, Areana);
     if(File)
@@ -84,12 +83,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     #endif
 
     breakout_game_state* CurrentState = (breakout_game_state*)Memory->PermanentStorage;
-    PlatformLoadFile = State->Interface.PlatformLoadFile;
     if(!Memory->IsInitialized) {
-        #if ENNOV_PLATFORM_LINUX
-        gladLoadGL();
-        #endif
-
         InitializeAreana(&State->GameStorage, (char*)Memory->PermanentStorage + sizeof(CurrentState), Memory->PermanentStorageSize - sizeof(CurrentState));
         InitializeAreana(&State->ScratchStorage, Memory->TransientStorage, Memory->TransientStorageSize);
         InitializeAreana(&State->AssestStorage, Memory->AssetMemory, Memory->AssetMemorySize);
@@ -187,6 +181,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         {
             if(CurrentState->Fired)
                 Ball->Pos = {Ball->Pos.x, 540.0f - Ball->Dimensions.y};
+
             Direction->x = (Direction->x);
             Direction->y = -(Direction->y);
         }
@@ -319,7 +314,30 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
+
+    // UIInit();
+
+    // // User Inputs to the UI system
+    // // Mouse Input and keyboard input
+    // // Sets the current active ui element and hot ui
+
+    ui_io Inputs;
+
+    // UIBegin(Batch, &Inputs, 600, 400);
+    // UIBeginWindow("Hello UI", 600, 400);
+
+    // if(UIButton("Pressmeplease!"))
+    // {
+    //     UIBeginWindow("Hello Window 2");
+    //     UIEnd();
+    // }
+
+    // UIEndWindow();
+    // UIEnd();
+
+    FlushRenderer(Batch);
     EndText(&CurrentState->TextData);
+
     // sprite_batch Batch;
     // StartBatch(&Batch);
     // DrawRectangle(&Batch, Texture, Color, Pos, Dim, TextureClip);

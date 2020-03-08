@@ -12,7 +12,7 @@ extern "C" {
     (i * 1024 * 1024)
 
 #ifdef ENNOV_DEBUG
-#define Assert(Expression) {if(!(Expression)){ fprintf(stderr, "Assertion failed: %s\n", #Expression ); *(char*)0 = 1; }}
+#define Assert(Expression) {if(!(Expression)){ fprintf(stderr, "Assertion failed: %s\n", #Expression ); __builtin_trap(); }}
 #else
 #define Assert(Expression)
 #endif
@@ -147,31 +147,27 @@ typedef struct game_areana
     memory_index Size;
 }game_areana;
 
-void InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size);
-void* PushStruct_(game_areana* Areana, memory_index Size);
+extern void InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size);
+extern void* PushStruct_(game_areana* Areana, memory_index Size);
 
 #define PushStruct(Areana, Type) (Type *) PushStruct_(Areana, sizeof(Type))
 
-typedef struct game_interface
-{
-	game_file*(*PlatformLoadFile)(char* File, void*(*)(game_areana*, memory_index), game_areana*);
-}game_interface;
+extern void* PlatformLoadFile(const char* FileName, void*(*Push)(game_areana*, memory_index), game_areana* Areana);
 
 typedef struct game_state
 {
-	game_interface Interface;
     game_areana GameStorage;
     game_areana ScratchStorage;
     game_areana AssestStorage;
     f32 Delta;
-  struct window_context_attribs
-  {
-    int32 Width;
-    int32 Height;
-  }ContextAttribs;
+    struct window_context_attribs
+    {
+        int32 Width;
+        int32 Height;
+    }ContextAttribs;
 }game_state;
 
-void GameUpdateAndRender(game_memory* Memory, game_state* State, game_input* Input, u32 *ConfigBits);
+extern void GameUpdateAndRender(game_memory* Memory, game_state* State, game_input* Input, u32 *ConfigBits);
 
 #ifdef __cplusplus
 }

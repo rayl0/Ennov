@@ -1,4 +1,8 @@
 #if !defined(ENNOV_MATH_H)
+
+// TODO(rajat): Some things are needed no matter what
+#include <stdio.h>
+
 #include "ennov_platform.h"
 
 struct vec2
@@ -59,6 +63,22 @@ struct vec4
     real32 data[4];
   };
 };
+
+inline f32 dot(const vec2& a, const vec2& b)
+{
+    return (a.x * b.x + a.y * b.y);
+}
+
+inline f32 length(const vec2& a)
+{
+    return (sqrt(a.x * a.x + a.y * a.y));
+}
+
+inline vec2 normal(const vec2& a)
+{
+    f32 Length = length(a);
+    return {a.x / Length, a.y / Length};
+}
 
 inline vec2
 operator-(vec2& Vector)

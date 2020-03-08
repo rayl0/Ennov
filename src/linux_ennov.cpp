@@ -4,6 +4,9 @@
   --GJK Collision Detection (It is not necessary to use this)
   --Cleaning Up Platform layer
   --Input System Cleaning
+
+  --NOTE(rajat): As of Now Game is going to be statically linked
+  -- because to reduce complexity and needs.
  */
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -31,9 +34,6 @@
 #include <GL/glxext.h>
 #include <dlfcn.h>
 #include <fcntl.h>
-
-
-
 
 typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
 
@@ -311,8 +311,8 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
     }
 }
 
-internal_ game_file*
-PlatformLoadFile(char* File, void*(Alloc)(game_areana*, memory_index), game_areana* Areana)
+void*
+PlatformLoadFile(const char* File, void*(Alloc)(game_areana*, memory_index), game_areana* Areana)
 {
     if(Alloc)
     {
@@ -374,8 +374,6 @@ main(int argc, char* argv[])
     // NOTE(Rajat): Always load OpenGL after creating a context and making it current
     gladLoadGL();
 
-    void* GameLibrary = NULL;
-
     // TODO(Rajat): Query addresses for virtual allocating
     game_memory GameMemory = {};
     GameMemory.PermanentStorageSize = MEGABYTES_TO_BTYES(512);
@@ -403,18 +401,12 @@ main(int argc, char* argv[])
     read(SaveFileHandle, GameMemory.PermanentStorage, SaveFileStat.st_size);
     close(SaveFileHandle);
 
-    void (*GameUpdateAndRender)(game_memory* Memory, game_state *State, game_input *Input, u32 *ConfigBits);
     game_input Input[2] = {};
     game_input* OldInput = &Input[0];
     game_input* NewInput = &Input[1];
     NewInput->Cursor = {-100.0f, -100.0f};
 
     game_state GameState = {};
-
-    GameState.Interface.PlatformLoadFile = PlatformLoadFile;
-
-    GameLibrary = dlopen("./ennov.so", RTLD_LAZY);
-    GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input, u32 *ConfigBits))dlsym(GameLibrary, "GameUpdateAndRender");
 
     timespec LastTime;
     f32 LastTimeInMs;
@@ -438,18 +430,8 @@ main(int argc, char* argv[])
 
     while (State.Running) {
         X11ProcessEvents(&State, NewInput, &GameState);
-
-        // GameLibrary = dlopen("./ennov.so", RTLD_NOW);
-        // if (!GameLibrary) {
-        //   sleep(1);
-        //   GameLibrary = dlopen("./ennov.so", RTLD_NOW);
-        //   fprintf(stderr, "%s\n", dlerror());
-        // }
-
-
-        // GameUpdateAndRender = (void(*)(game_memory* Memory, game_state* State, game_input* Input))dlsym(GameLibrary, "GameUpdateAndRender");
-
         GameUpdateAndRender(&GameMemory, &GameState, NewInput, &ConfigBits);
+
         glCullFace(GL_BACK);
         glXSwapBuffers(State.Display_, State.Window_);
 
@@ -488,8 +470,6 @@ main(int argc, char* argv[])
     munmap(GameMemory.PermanentStorage, GameMemory.PermanentStorageSize);
     munmap(GameMemory.TransientStorage, GameMemory.TransientStorageSize);
     munmap(GameMemory.AssetMemory, GameMemory.AssetMemorySize);
-
-    dlclose(GameLibrary);
 
     glXDestroyContext(State.Display_, State.Context);
     XFreeColormap(State.Display_, State.WindowColormap);

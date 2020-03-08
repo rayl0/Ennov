@@ -1,7 +1,7 @@
 #include "ennov_platform.h"
 
 #if ENNOV_PLATFORM_LINUX
-#include "glad/glad.c"
+#include "glad/glad.h"
 #else
 #include <GLES2/gl2.h>
 #endif
@@ -40,7 +40,7 @@ internal_ batch_data
 CreateBatch(game_areana* Areana);
 
 internal_ u32
-CreateShaderProgram(char* VertexShaderSource, char* FragmentShaderSource)
+CreateShaderProgram(const char* VertexShaderSource, const char* FragmentShaderSource)
 {
     u32 VertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(VertexShader, 1, &VertexShaderSource, NULL);
@@ -87,7 +87,7 @@ InitRenderer(renderer_data* RenderData, game_areana* Areana)
         // TODO(rajat): Create texture allocating api. And cached textures
         glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &RenderData->NumTextureSlots);
         RenderData->Batch = CreateBatch(Areana);
-        char* VertexShaderSource = {R"(
+        const char* VertexShaderSource = {R"(
              #version 420 core
 
              layout(location = 0) in vec4 Position;
@@ -112,7 +112,7 @@ InitRenderer(renderer_data* RenderData, game_areana* Areana)
 
         // NOTE(rajat): Be careful with names in shaders make sure to have same names
 
-        char* FragmentShaderSource = {R"(
+        const char* FragmentShaderSource = {R"(
              #version 420 core
 
              out vec4 OutputColor;
@@ -136,7 +136,6 @@ InitRenderer(renderer_data* RenderData, game_areana* Areana)
         )"};
 
         RenderData->Batch.ShaderProgram = CreateShaderProgram(VertexShaderSource, FragmentShaderSource);
-
         RenderData->ShaderProgram = RenderData->Batch.ShaderProgram;
 
         u32 ProjectionLocation = glGetUniformLocation(RenderData->Batch.ShaderProgram, "Projection");
@@ -345,6 +344,35 @@ BatchRenderRectangle(batch_data* Batch, texture *Texture, vec4 Color,
     }
 }
 
+
+void
+DrawBatchRectangleExA(renderer_data *RenderData, texture *Texture, vec4 Color,
+                      rect *SrcClip, f32 x, f32 y, f32 w, f32 h, f32 s0, f32 t0, f32 s1, f32 t1, u32 ShaderProgram)
+{
+    if(RenderData) {
+        // TODO(rajat): Important map color values to 0.0f/1.0f
+        // NOTE(rajat): Always try to minimize work postpone, do it now to decrease complexity
+
+        if(RenderData->Batch.NumBindTextureSlots == RenderData->NumTextureSlots ||
+           RenderData->Batch.VertexBufferCurrentPos + 54 >= RenderData->Batch.VertexBufferSize ||
+           RenderData->ShaderProgram != ShaderProgram)
+        {
+            FlushBatch(&RenderData->Batch, RenderData->Batch.ShaderProgram, RenderData->VertexArray, RenderData->DynamicVertexBuffer);
+            RenderData->Batch.ShaderProgram = ShaderProgram;
+            RenderData->Batch.NumBindTextureSlots = 0;
+            RenderData->Batch.VertexBufferCurrentPos = 0;
+
+            for(int i = 0; i < 32; i++)
+            {
+                RenderData->Batch.TextureSlots[i] = -1;
+            }
+        }
+
+        BatchRenderRectangleDx(&RenderData->Batch, Texture, Color, x, y, w, h, s0, t0, s1, t1);
+
+    }
+}
+
 void
 DrawBatchRectangleEx(renderer_data *RenderData, texture *Texture, vec4 Color,
                      rect *SrcClip, vec2 Position, vec2 Dimension, u32 ShaderProgram)
@@ -358,7 +386,9 @@ DrawBatchRectangleEx(renderer_data *RenderData, texture *Texture, vec4 Color,
            RenderData->ShaderProgram != ShaderProgram)
         {
             FlushBatch(&RenderData->Batch, RenderData->Batch.ShaderProgram, RenderData->VertexArray, RenderData->DynamicVertexBuffer);
-            RenderData->Batch.ShaderProgram = ShaderProgram;
+
+            if(RenderData->ShaderProgram != ShaderProgram)
+                RenderData->Batch.ShaderProgram = ShaderProgram;
             RenderData->Batch.NumBindTextureSlots = 0;
             RenderData->Batch.VertexBufferCurrentPos = 0;
 
