@@ -37,7 +37,7 @@ endif(ENNOV_DEBUG)
 
 # All build options for linux
 if(ENNOV_PLATFORM_LINUX)
-  set(ENNOV_BUILD_OPTIONS ${ENNOV_BUILD_OPTIONS} -fno-rtti)
+  set(ENNOV_BUILD_OPTIONS ${ENNOV_BUILD_OPTIONS})
   set(ENNOV_LIB_TYPE STATIC)
 endif()
 
@@ -72,7 +72,7 @@ endif()
 
 add_library(ennov ${ENNOV_LIB_TYPE} src/ennov.cpp)
 
-target_link_libraries(ennov PUBLIC glm::glm)
+target_link_libraries(ennov PUBLIC glm::glm m)
 target_compile_options(ennov PUBLIC ${ENNOV_BUILD_OPTIONS})
 target_compile_features(ennov PUBLIC c_std_99 cxx_std_11)
 

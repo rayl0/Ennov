@@ -23,6 +23,301 @@
 #define glCall(x) x;
 #endif
 
+static const char* TexQuadVertexShaderSource = {R"(
+             #version 420 core
+
+             layout(location = 0) in vec4 Position;
+             layout(location = 1) in vec4 Color;
+             layout(location = 2) in float TexIndex;
+
+             out vec4 FragColor;
+             out vec2 TextureCoord;
+             out float OutTexIndex;
+
+             uniform mat4 ViewProj;
+
+             void main()
+             {
+                 gl_Position = ViewProj * vec4(Position.xy, 0.0f, 1.0f);
+                 FragColor = Color;
+                 TextureCoord = Position.zw;
+                 OutTexIndex = TexIndex;
+             }
+        )"
+};
+
+// NOTE(rajat): Be careful with names in shaders make sure to have same names
+
+static const char* TexQuadFragmentShaderSource = {R"(
+             #version 420 core
+
+             out vec4 OutputColor;
+
+             in vec4 FragColor;
+             in vec2 TextureCoord;
+             in float OutTexIndex;
+
+             uniform sampler2D Textures[%i];
+
+             void main()
+             {
+               int SamplerIndex = int(OutTexIndex);
+               if(OutTexIndex == -1.0f)
+                   OutputColor = FragColor;
+               else
+               {
+                   if(SamplerIndex == 0)
+                         OutputColor = FragColor * vec4(1.0f, 1.0f, 1.0f, texture(Textures[SamplerIndex], TextureCoord).r);
+                   else
+                         OutputColor = FragColor * texture(Textures[SamplerIndex], TextureCoord);
+               }
+             }
+        )"
+};
+
+render_context rctx;
+b32 IsCtxInitialized = false;
+
+void
+CreateRenderContext()
+{
+    if(IsCtxInitialized) return;
+
+    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &rctx.NumTextureSlots);
+
+    glGenVertexArrays(1, &rctx.VertexArray);
+    glBindVertexArray(rctx.VertexArray);
+
+    glGenBuffers(1, &rctx.VertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, rctx.VertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * VERTEX_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
+
+    char TempBuffer[2048];
+    sprintf(TempBuffer, TexQuadFragmentShaderSource, rctx.NumTextureSlots);
+
+    rctx.TexQuadShader = CreateShaderProgram(TexQuadVertexShaderSource, TempBuffer);
+    glUseProgram(rctx.TexQuadShader);
+
+    rctx.ViewProj = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
+
+    GLuint ViewProjLocation = glGetUniformLocation(rctx.TexQuadShader, "ViewProj");
+    glUniformMatrix4fv(ViewProjLocation, 1, GL_FALSE, glm::value_ptr(rctx.ViewProj));
+
+    u32 SamplerLocation = glGetUniformLocation(rctx.TexQuadShader, "Textures");
+    s32 Samplers[32];
+
+    for(int i = 0; i < 32; ++i)
+    {
+        Samplers[i] = i;
+    }
+
+    glUniform1iv(SamplerLocation, rctx.NumTextureSlots, Samplers);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(f32) * 9, 0);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(f32) * 9, (void*)(sizeof(f32) * 4));
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(f32) * 9, (void*)(sizeof(f32) * 8));
+
+    rctx.VertexBufferCurrentPos = 0;
+    rctx.NumBindTextureSlots = 0;
+
+    IsCtxInitialized = true;
+}
+
+static glm::vec4 qd[6] = {
+    {0.0f, 1.0f, 0.0f, 1.0f},
+    {1.0f, 0.0f, 0.0f, 1.0f},
+    {0.0f, 0.0f, 0.0f, 1.0f},
+
+    {0.0f, 1.0f, 0.0f, 1.0f},
+    {1.0f, 1.0f, 0.0f, 1.0f},
+    {1.0f, 0.0f, 0.0f, 1.0f}
+};
+
+void
+FillQuad(f32 x, f32 y, f32 w, f32 h, u32 Color)
+{
+    Assert(IsCtxInitialized == true);
+
+    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
+        RenderCommit();
+
+    f32 Index = -1.0f;
+
+    glm::mat4 Model = glm::mat4(1.0f);
+
+    Model = glm::translate(Model, glm::vec3(x, y, 0));
+    Model = glm::scale(Model, glm::vec3(w, h, 0));
+
+    glm::vec4 tvd[6];
+
+    u8 r, g, b, a;
+    DecodeRGBA(Color, &r, &g, &b, &a);
+
+    for(int i = 0; i < 6; ++i) {
+        tvd[i] = Model * qd[i];
+    }
+
+    f32 VertexData[54] = {
+        tvd[0].x, tvd[0].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[1].x, tvd[1].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[2].x, tvd[2].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[3].x, tvd[3].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[4].x, tvd[4].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[5].x, tvd[5].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
+    };
+
+    for(int i = 0; i < 54; i++)
+    {
+        rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
+    }
+
+    rctx.VertexBufferCurrentPos += 54;
+}
+
+void
+FillTexQuad(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture)
+{
+    Assert(IsCtxInitialized == true);
+
+    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
+        RenderCommit();
+
+    f32 Index = -1.0f;
+    if(rctx.NumBindTextureSlots == rctx.NumTextureSlots)
+        RenderCommit();
+
+    for(int i = 1; i < rctx.NumBindTextureSlots + 1; ++i)
+    {
+        if(Texture->Id == rctx.TextureMap[i])
+        {
+            Index = i;
+        }
+    }
+
+    if(Index == -1.0f)
+    {
+        rctx.TextureMap[rctx.NumBindTextureSlots + 1] = Texture->Id;
+        Index = rctx.NumBindTextureSlots + 1;
+        rctx.NumBindTextureSlots++;
+    }
+
+    glm::mat4 Model = glm::mat4(1.0f);
+
+    Model = glm::translate(Model, glm::vec3(x, y, 0));
+    Model = glm::scale(Model, glm::vec3(w, h, 0));
+
+    glm::vec4 tvd[6];
+
+    u8 r, g, b, a;
+    DecodeRGBA(Color, &r, &g, &b, &a);
+
+    for(int i = 0; i < 6; ++i) {
+        tvd[i] = Model * qd[i];
+    }
+
+    f32 VertexData[54] = {
+        tvd[0].x, tvd[0].y, qd[0].x, qd[0].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[1].x, tvd[1].y, qd[1].x, qd[1].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[2].x, tvd[2].y, qd[2].x, qd[2].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[3].x, tvd[3].y, qd[3].x, qd[3].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[4].x, tvd[4].y, qd[4].x, qd[4].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[5].x, tvd[5].y, qd[5].x, qd[5].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
+    };
+
+    for(int i = 0; i < 54; i++)
+    {
+        rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
+    }
+
+    rctx.VertexBufferCurrentPos += 54;
+}
+
+void
+FillTexQuad(f32 x, f32 y, f32 w, f32 h, texture *Texture)
+{
+    Assert(IsCtxInitialized == true);
+
+    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
+        RenderCommit();
+
+    f32 Index = -1.0f;
+    if(rctx.NumBindTextureSlots == rctx.NumTextureSlots)
+        RenderCommit();
+
+    for(int i = 1; i < rctx.NumBindTextureSlots + 1; ++i)
+    {
+        if(Texture->Id == rctx.TextureMap[i])
+        {
+            Index = i;
+        }
+    }
+
+    if(Index == -1.0f)
+    {
+        rctx.TextureMap[rctx.NumBindTextureSlots + 1] = Texture->Id;
+        Index = rctx.NumBindTextureSlots + 1;
+        rctx.NumBindTextureSlots++;
+    }
+
+    glm::mat4 Model = glm::mat4(1.0f);
+
+    Model = glm::translate(Model, glm::vec3(x, y, 0));
+    Model = glm::scale(Model, glm::vec3(w, h, 0));
+
+    glm::vec4 tvd[6];
+
+    for(int i = 0; i < 6; ++i) {
+        tvd[i] = Model * qd[i];
+    }
+
+    f32 VertexData[54] = {
+        tvd[0].x, tvd[0].y, qd[0].x, qd[0].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
+        tvd[1].x, tvd[1].y, qd[1].x, qd[1].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
+        tvd[2].x, tvd[2].y, qd[2].x, qd[2].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
+        tvd[3].x, tvd[3].y, qd[3].x, qd[3].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
+        tvd[4].x, tvd[4].y, qd[4].x, qd[4].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
+        tvd[5].x, tvd[5].y, qd[5].x, qd[5].y, 1.0f, 1.0f, 1.0f, 1.0f, Index
+    };
+
+    for(int i = 0; i < 54; i++)
+    {
+        rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
+    }
+
+    rctx.VertexBufferCurrentPos += 54;
+}
+
+void
+RenderCommit()
+{
+    glBindVertexArray(rctx.VertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, rctx.VertexBuffer);
+
+    glBufferSubData(GL_ARRAY_BUFFER, 0,
+                    sizeof(float) * rctx.VertexBufferCurrentPos,
+                    rctx.VertexBufferData);
+
+    glUseProgram(rctx.TexQuadShader);
+
+    for(int i = 0; i < rctx.NumBindTextureSlots + 1; ++i)
+    {
+        glActiveTexture(GL_TEXTURE0 + i);
+        glBindTexture(GL_TEXTURE_2D, rctx.TextureMap[i]);
+    }
+
+    glDrawArrays(GL_TRIANGLES, 0, rctx.VertexBufferCurrentPos / DATA_PER_VERTEX_TEXQUAD);
+
+    rctx.VertexBufferCurrentPos = 0;
+    rctx.NumBindTextureSlots = 0;
+}
+
 void
 QueryRenderData(renderer_data* RenderData)
 {

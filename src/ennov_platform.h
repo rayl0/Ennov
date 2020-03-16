@@ -71,6 +71,22 @@ typedef real64 f64;
     #endif
 #endif
 
+internal_
+u32 EncodeRGBA(u8 r, u8 g, u8 b, u8 a)
+{
+    u32 t = r << 24 | g << 16 | b << 8 | a;
+    return t;
+}
+
+internal_
+void DecodeRGBA(u32 Color, u8 *r, u8 *g, u8 *b, u8 *a)
+{
+    *r = Color >> 24;
+    *g = (Color << 8) >> 24;
+    *b = (Color << 16) >> 24;
+    *a = (Color << 24) >> 24;
+}
+
 // TODO(Rajat): Might want to replace it in future
 
 typedef struct game_button_state
@@ -159,7 +175,7 @@ typedef struct game_state
     game_areana GameStorage;
     game_areana ScratchStorage;
     game_areana AssestStorage;
-    f32 Delta;
+    f32 dt;
     struct window_context_attribs
     {
         int32 Width;

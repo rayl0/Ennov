@@ -31,6 +31,57 @@ struct renderer_data
     glm::mat4 Projection;
 };
 
+#define MAX_TEXQUADS 100
+
+#define DATA_PER_VERTEX_TEXQUAD 9
+#define VERTEX_BUFFER_SIZE (MAX_TEXQUADS * 6 * DATA_PER_VERTEX_TEXQUAD)
+
+struct render_context
+{
+    u32 VertexArray;
+    u32 VertexBuffer;
+
+    glm::mat4 ViewProj;
+
+    f32 VertexBufferData[VERTEX_BUFFER_SIZE];
+    u32 VertexBufferCurrentPos;
+
+    u32 TextureMap[32];
+    u8 StartIndex;
+    s32 NumTextureSlots;
+    u32 NumBindTextureSlots;
+
+    u32 TexQuadShader;
+};
+
+/* void BeginRender(); */
+/* void FillQuad(60, 60, 60, 60, 0xFF0305FA); */
+/* void FillTexQuad(60, 60, 60, 60, 0xFF0305FA, Texture); */
+/* void FillTexQuad(60, 60, 60, 60, Texture); */
+/* void FillTexQuadClipped(60, 60, 60, 60, 0xFF0305FA, Texture, ClipRect);
+/* void EndRender(); */
+
+extern void
+CreateRenderContext();
+
+/* extern void */
+/* PositionCameraAt(); */
+
+extern void
+FillQuad(f32 x, f32 y, f32 w, f32 h, u32 Color);
+
+extern void
+FillTexQuad(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture);
+
+extern void
+FillTexQuad(f32 x, f32 y, f32 w, f32 h, texture *Texture);
+
+extern void
+FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture, vec4 *Clip);
+
+extern void
+RenderCommit();
+
 internal_ texture
 CreateTextureEx(u8* Pixels, u32 PixelFormat, u32 Width, u32 Height, u32 TextureFormat);
 

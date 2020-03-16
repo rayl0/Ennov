@@ -298,8 +298,10 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
             NewInput->Cursor.Y = (real32)MouseIn.y;
         }   break;
         case LeaveNotify: {
-            NewInput->Cursor.X = -100.0f;
-            NewInput->Cursor.Y = -100.0f;
+            // NOTE(rajat): (BUG): Mouse leave glitch and motion glitch with sprites
+            XLeaveWindowEvent MouseOut = (XLeaveWindowEvent)Event.xcrossing;
+            NewInput->Cursor.X = (f32)MouseOut.x;
+            NewInput->Cursor.Y = (f32)MouseOut.y;
         } break;
         case MotionNotify: {
             XMotionEvent MouseMove = Event.xmotion;
@@ -448,9 +450,9 @@ main(int argc, char* argv[])
         f32 CurrentTimeInMs = ((f32)CurrentTimeSpec.tv_sec * 1.0e3f) + ((f32)CurrentTimeSpec.tv_nsec / 1.0e6f);
 
         // NOTE(rajat): Delta value will be in deciseconds not seconds
-        GameState.Delta = (CurrentTimeInMs - LastTimeInMs) / 1.0e2f;
-        // printf("%f\n", GameState.Delta * 1.0e2f);
-        // printf("%f\n", 1000/(GameState.Delta * 1.0e2f));
+        GameState.dt = (CurrentTimeInMs - LastTimeInMs) / 1.0e2f;
+        // printf("%f\n", GameState.dt * 1.0e2f);
+        // printf("%f\n", 1000/(GameState.dt * 1.0e2f));
 
         LastTimeInMs = CurrentTimeInMs;
 

@@ -108,6 +108,8 @@ DrawString(const char *String, f32 x, f32 y, f32 Scale, vec4 Color)
             // TODO(rajat): Scaling of characters, Scale value is ignored
             BatchRenderRectangleDx(&Renderer->Batch, &FontTexture, Color,
                                    q.x0, q.y0, (q.x1 - q.x0), (q.y1 - q.y0), q.s0, q.t0, q.s1, q.t1);
+
+            FlushBatch(&Renderer->Batch, Renderer->TextShaderProgram, Renderer->VertexArray, Renderer->DynamicVertexBuffer);
         }
 
         ++String;
