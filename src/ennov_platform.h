@@ -98,6 +98,7 @@ typedef struct game_button_state
 typedef struct game_cursor_state
 {
     real32 X, Y;
+    b32 Hit;
 }game_cursor_state;
 
 typedef struct game_input

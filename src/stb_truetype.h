@@ -53,8 +53,8 @@
 //       Johan Duparc               Thomas Fields
 //       Hou Qiming                 Derek Vinyard
 //       Rob Loach                  Cort Stratton
-//       Kenney Phillis Jr.         Brian Costabile            
-//       Ken Voskuil (kaesve)       
+//       Kenney Phillis Jr.         Brian Costabile
+//       Ken Voskuil (kaesve)
 //
 // VERSION HISTORY
 //
@@ -4322,7 +4322,7 @@ STBTT_DEF void stbtt_GetPackedQuad(const stbtt_packedchar *chardata, int pw, int
       q->y1 = *ypos + b->yoff2;
    }
 
-   q->s0 = b->x0 * ipw;
+   q->s0 = b->x0 * iph;
    q->t0 = b->y0 * iph;
    q->s1 = b->x1 * ipw;
    q->t1 = b->y1 * iph;

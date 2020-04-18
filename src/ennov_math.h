@@ -119,11 +119,6 @@ struct rect
         };
         struct
         {
-            vec2 Min;
-            vec2 Max;
-        };
-        struct
-        {
             vec2 p;
             vec2 d;
         };
@@ -131,6 +126,7 @@ struct rect
         {
             f32 x, y, w, h;
         };
+        f32 data[4];
     };
 };
 
@@ -138,17 +134,6 @@ struct rect_projection_data
 {
     vec2 Min;
     vec2 Max;
-};
-
-inline rect_projection_data GetRectangleProjectionData(rect Rectangle)
-{
-   rect_projection_data NewProjection;
-   NewProjection.Min.x = Rectangle.Pos.x;
-   NewProjection.Min.y = Rectangle.Pos.y;
-   NewProjection.Max.x = Rectangle.Pos.x + Rectangle.Dimensions.x;
-   NewProjection.Max.y = Rectangle.Pos.y + Rectangle.Dimensions.y;
-
-   return NewProjection;
 };
 
 inline bool32 RectangleColloide(rect Rectangle1, rect Rectangle2)
@@ -162,12 +147,10 @@ inline bool32 RectangleColloide(rect Rectangle1, rect Rectangle2)
   return ColloideX && ColloideY;
 };
 
-inline bool32 RectangleContainsPoint(rect Rectangle, vec2 Point)
+inline bool32 RectangleContainsPoint(rect Projection, vec2 Point)
 {
-   rect_projection_data Projection = GetRectangleProjectionData(Rectangle);
-
-   return ((Projection.Max.x >= Point.x && Projection.Min.x <= Point.x) &&
-           (Projection.Max.y >= Point.y && Projection.Min.y <= Point.y));
+   return ((Projection.p.x + Projection.d.x >= Point.x && Projection.p.x <= Point.x) &&
+           (Projection.p.y + Projection.d.y >= Point.y && Projection.p.y <= Point.y));
 }
 
 #define ENNOV_MATH_H

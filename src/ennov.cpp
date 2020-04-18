@@ -10,6 +10,8 @@
 #include "ennov_gl.cpp"
 #include "ennov_ui.cpp"
 
+#include "ennov_font_parser.cpp"
+
 #include "ennov_platform.h"
 #include "ennov.h"
 
@@ -56,11 +58,7 @@ struct breakout_game_state
     loaded_bitmap *BallBitmap;
     loaded_bitmap *TileBitmap;
     texture Textures[4];
-    glm::mat4 Projection; // TODO(Rajat): Replace glm fast!
-    renderer_data RendererData;
-    character_glyph *Glyphs;
     game_file *TextFontFile;
-    text_rendering_data TextData;
     b32 Fired;
     vec2 Direction;
     rect Ball;
@@ -116,12 +114,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             }
         }
 
-        CurrentState->RendererData = {};
-
-        CurrentState->RendererData.Projection = glm::ortho(0.0f, 800.0f, 600.0f, 00.0f, -1.0f, 1.0f); // TODO(Rajat): Update projection with window size change!
-        CurrentState->Projection = glm::ortho(0.0f, 800.0f, 600.0f, 00.0f); // TODO(Rajat): Update projection with window size change!
-
-        InitRenderer(&CurrentState->RendererData, &State->ScratchStorage);
         CurrentState->BackgroundBitmap = LoadPixelsFrom("assets/background.jpg", &State->AssestStorage);
         CurrentState->BallBitmap = LoadPixelsFrom("assets/background.jpg", &State->AssestStorage);
         CurrentState->PaddleBitmap = LoadPixelsFrom("assets/paddle.png", &State->AssestStorage);
@@ -133,10 +125,28 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->Textures[1] = CreateTexture(CurrentState->TileBitmap);
         CurrentState->Textures[2] = CreateTexture(CurrentState->PaddleBitmap);
 
-        CurrentState->TextData = {};
         CurrentState->TextFontFile = (game_file*)PlatformLoadFile("assets/s.ttf", PushStruct_, &State->AssestStorage);
 
-        CreateRenderContext();
+        // TODO(rajat): Load precompiled shaders if possible
+        game_file* VertexShaderFile = (game_file*)PlatformLoadFile("shaders/gquad.vert",  PushStruct_, &State->AssestStorage);
+        game_file* FragmentShaderFile = (game_file*)PlatformLoadFile("shaders/gquad.frag", PushStruct_, &State->AssestStorage);
+
+        char* Data = (char*)FragmentShaderFile->Data;
+        Data[FragmentShaderFile->Size - 1] = '\0';
+
+        CreateRenderContext((const char*)VertexShaderFile->Data, (const char*)FragmentShaderFile->Data);
+        CreateTextFonts((u8*)CurrentState->TextFontFile->Data, 32);
+
+        fontinfo Info = {};
+        GetFontInfo("assets/fonts/default.fnt", &Info);
+
+        for(int i = 0; i < 128; i++)
+        {
+            printf("Char: %c, xoff: %f, w: %f\n",
+                   Info.Fonts[i].Id,
+                   Info.Fonts[i].xoffset,
+                   Info.Fonts[i].w);
+        }
 
         Memory->IsInitialized = true;
     }
@@ -147,7 +157,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     rect* Ball = &CurrentState->Ball;
     rect* Paddle = &CurrentState->Paddle;
     vec2* Direction = &CurrentState->Direction;
-    renderer_data* Batch = &CurrentState->RendererData;
 
     if(WasPressed(Input, S)) {
         if(CurrentState->IsPaused)
@@ -273,24 +282,18 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->Fired = false;
     }
 
-    rect SrcClip = {100, 100, 100, 100};
-    DrawBatchRectangle(Batch, &CurrentState->Textures[2], {1, 1, 1, 1}, &SrcClip, Paddle->Pos, Paddle->Dimensions);
+    FillTexQuad(Paddle->data, &CurrentState->Textures[2]);
+    FillTexQuad(Ball->data, &CurrentState->Textures[0]);
 
-    DrawBatchRectangle(Batch, &CurrentState->Textures[0], {1, 1, 1, 1}, NULL, Ball->Pos, Ball->Dimensions);
-
-    FlushRenderer(Batch);
-
-    BeginText(&CurrentState->TextData, CurrentState->Glyphs, &CurrentState->Projection, &State->ScratchStorage);
     const char* LiveString = "Lives: %i";
     char Buffer[50];
 
     // NOTE(rajat): It will be a good idea to replace this text renderer pointing
     // thing with an actual global backend renderer
-    BeginText(&CurrentState->TextData, (u8*)CurrentState->TextFontFile->Data, 32);
     sprintf(Buffer, LiveString, CurrentState->Lives);
 
     DrawString(Buffer, 0.0f, 20.0f,
-               1.0f, {1.f, 1.f, 1.f, 1.f});
+               1.0f, 0xFFFFFFFF);
 
     const char* FpsString = "FPS: %u";
     if((1000/(State->dt * 1.0e2f)) >= 55.0f)
@@ -301,12 +304,12 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     }
     // TODO(rajat): Might not render stuff like this
     DrawString(Buffer, 700, 570,
-               1.0f, {1.f, 1.f, 1.f, 1.f});
+               1.0f, 0xFFFFFFFF);
 
     if(NumActieTiles == 0)
     {
-        DrawString("You Win!", 250.0f, 300.0f, 1.0f, {1.f, 1.f, 1.f, 1.f});
-        DrawString("Press Terminate to close", 190.0f, 384.0f, 0.5f, {1.f, 1.f, 1.f, 1.f});
+        DrawString("You Win!", 300.0f, 300.0f, 1.0f, 0xFFFFFFFF);
+        DrawString("Press Terminate to close", 190.0f, 348.0f, 0.5f, 0xFFFFFFFF);
         CurrentState->IsPaused = true;
         CurrentState->Fired = false;
     }
@@ -314,7 +317,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     {
         if(CurrentState->IsPaused)
         {
-            DrawString("Paused!", 150, 150, 2.0f, {1.f, 1.f, 1.f, 1.f});
+            DrawString("Paused!", 150, 150, 2.0f, 0xFFFFFFFF);
         }
     }
 
@@ -325,11 +328,15 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     // // Mouse Input and keyboard input
     // // Sets the current active ui element and hot ui
 
-//    ui_io Inputs;
-//    Inputs.Pointer.x = Input->Cursor.X;
-//    Inputs.Pointer.y = Input->Cursor.Y;
-//
-//    UIBeginWindow("Hello UI", 200, 200);
+    ui_io Inputs;
+    Inputs.Pointer.x = Input->Cursor.X;
+    Inputs.Pointer.y = Input->Cursor.Y;
+    Inputs.Hit = Input->Cursor.Hit;
+
+    UIBegin(&Inputs, 800, 600);
+    UIBeginWindow("Hello UI", 200, 200);
+
+    UIButton("hello", 100, 100, 100, 50);
 //
 //    // if(UIButton("Pressmeplease!"))
 //    // {
@@ -337,23 +344,21 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 //    //     UIEnd();
 //    // }
 //
-//    UIEndWindow();
-//    UIEnd();
+    UIEndWindow();
+    UIEnd();
 //
 //    FlushRenderer(Batch);
 
-    FillQuad(100, 100, 100, 100, 0x0000FFFF);
-    FillQuad(100, 200, 100, 100, 0xF06FFFFF);
-    FillQuad(100, 300, 100, 100, 0x005FFFFF);
-    FillQuad(100, 400, 100, 100, 0x00FFFFFF);
-    FillTexQuad(100, 500, 100, 100, 0x00FFFFFF, &CurrentState->Textures[1]);
-    FillTexQuad(200, 500, 100, 100, 0x00FFFFFF, &CurrentState->Textures[2]);
-    FillTexQuad(300, 500, 100, 100, &CurrentState->Textures[0]);
-    FillTexQuad(500, 500, 100, 100, &CurrentState->Textures[2]);
-    RenderCommit();
+    // FillQuad(100, 100, 100, 100, 0x0000FFFF);
+    // FillQuad(100, 200, 100, 100, 0xF06FFFFF);
+    // FillQuad(100, 300, 100, 100, 0x005FFFFF);
+    // FillQuad(100, 400, 100, 100, 0x00FFFFFF);
+    // FillTexQuad(100, 500, 100, 100, 0x00FFFFFF, &CurrentState->Textures[1]);
+    // FillTexQuad(200, 500, 100, 100, 0x00FFFFFF, &CurrentState->Textures[2]);
+    // FillTexQuad(300, 500, 100, 100, &CurrentState->Textures[0]);
+    // FillTexQuad(500, 500, 100, 100, &CurrentState->Textures[2]);
 
-    // sprite_batch Batch;
-    // StartBatch(&Batch);
-    // DrawRectangle(&Batch, Texture, Color, Pos, Dim, TextureClip);
-    // EndBatch(&Batch);
+    // FillTexQuadClipped(600, 500, 100, 100, &CurrentState->Textures[2], {0, 0, 50, 50});
+    DrawString("hello world to you", Paddle->Pos.x, Paddle->Pos.y, 1, 0xFFFFFFFF);
+    RenderCommit();
 }

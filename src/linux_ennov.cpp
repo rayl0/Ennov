@@ -222,6 +222,7 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
 
     local_persist XEvent Event;
     NewInput->Button  = {};
+    NewInput->Cursor.Hit = false;
 
     while (XPending(State->Display_) > 0) {
         XNextEvent(State->Display_, &Event);
@@ -290,8 +291,12 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
             break;
         case ButtonPress:
             break;
-        case ButtonRelease:
-            break;
+        case ButtonRelease: {
+            XButtonReleasedEvent MouseHit = (XButtonReleasedEvent)Event.xbutton;
+            NewInput->Cursor.X = MouseHit.x;
+            NewInput->Cursor.Y = MouseHit.y;
+            NewInput->Cursor.Hit = true;
+        }   break;
         case EnterNotify: {
             XEnterWindowEvent MouseIn = (XEnterWindowEvent)Event.xcrossing;
             NewInput->Cursor.X = (real32)MouseIn.x;
@@ -428,13 +433,13 @@ main(int argc, char* argv[])
     // TODO(rajat): Not optimal way to doing this, will be replaced soon
     u32 ConfigBits = 0;
 
-    glEnable(GL_CULL_FACE);
+    // glEnable(GL_CULL_FACE);
 
     while (State.Running) {
         X11ProcessEvents(&State, NewInput, &GameState);
         GameUpdateAndRender(&GameMemory, &GameState, NewInput, &ConfigBits);
 
-        glCullFace(GL_BACK);
+        // glCullFace(GL_BACK);
         glXSwapBuffers(State.Display_, State.Window_);
 
         if(ConfigBits == PlatformFullScreenToggle_BIT)
