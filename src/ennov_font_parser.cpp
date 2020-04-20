@@ -173,7 +173,6 @@ GetFontInfo(const char *fntfile, fontinfo *FontInfo)
         {
             while(!Split(Value, &Front, &End, ' '))
             {
-                printf("Front: %s\n", Front);
                 Split(Front, &KeyFront, &KeyEnd, '=');
 
                 if(!strcmp(Front, "face"))
@@ -213,7 +212,6 @@ GetFontInfo(const char *fntfile, fontinfo *FontInfo)
                 char *ArrayStart, *ArrayEnd;
                 Split(KeyEnd, &ArrayStart, &ArrayEnd, ',');
                 FontInfo->SpacingX = atoi(ArrayStart);
-                printf("SpacingX: %i\n", atoi(ArrayStart));
                 FontInfo->SpacingY = atoi(ArrayEnd);
             }
         }
@@ -254,6 +252,15 @@ GetFontInfo(const char *fntfile, fontinfo *FontInfo)
                 // TODO(rajat): Relative path loading
                 // NOTE(rajat): Only reterives default.png as a loaded bitmap
                 FontInfo->FontBitmap = LoadPixelsFrom("./assets/fonts/default.png", &GameState->AssestStorage);
+            }
+        }
+        else if(!strcmp(Name, "chars"))
+        {
+            Split(Value, &KeyFront, &KeyEnd, '=');
+
+            if(!strcmp(KeyFront, "count"))
+            {
+                FontInfo->Count = atoi(KeyEnd);
             }
         }
         // TODO(rajat): Handle the edge case of the last character data
@@ -298,7 +305,6 @@ GetFontInfo(const char *fntfile, fontinfo *FontInfo)
                 {
                     FontInfo->Fonts[FontId].xadvance = atoi(KeyEnd);
                 }
-
                 Value = Lskip(End);
             }
         }

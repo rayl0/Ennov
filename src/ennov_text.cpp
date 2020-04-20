@@ -13,7 +13,6 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-
 void
 InitializeAreana(game_areana* Areana, void* BaseAddress, u32 Size)
 {
@@ -39,9 +38,6 @@ PushStruct_(game_areana* Areana, memory_index Size)
     Areana->Used += Size + Padding;
     return NewStruct;
 }
-
-global_variable texture FontTexture;
-global_variable b32 IsInitialized = 0;
 
 #define MAX_FONTQUADS 200
 #define FONT_VERTEXBUFFER_SIZE MAX_FONTQUADS * 4 * 6
@@ -89,7 +85,9 @@ CreateFontRenderObjects(const char* VertexShader, const char* FragmentShader)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    FontRenderData.ViewProj = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
+    FontRenderData.ViewProj = glm::ortho(0.0f, (f32)GameState->ContextAttribs.Width,
+                                         (f32)GameState->ContextAttribs.Height,
+                                         0.0f, -1.0f, 1.0f);
 
     ViewProjLoc = glGetUniformLocation(FontRenderData.Shader, "ViewProj");
     glUniformMatrix4fv(ViewProjLoc, 1, GL_FALSE, glm::value_ptr(FontRenderData.ViewProj));
@@ -200,10 +198,16 @@ FontRenderCommit(u32 FontColor, f32 Width, f32 Edge,
 
     u8 r, g, b, a;
     DecodeRGBA(FontColor, &r, &g, &b, &a);
-    glUniform4f(FontColorLoc, r, g, b, a);
+    glUniform4f(FontColorLoc, r / 0xFF, g / 0xFF, b / 0xFF, a / 0xFF);
 
     DecodeRGBA(BorderColor, &r, &g, &b, &a);
-    glUniform3f(BorderColorLoc, r, g, b);
+    glUniform3f(BorderColorLoc, r / 0xFF, g / 0xFF, b / 0xFF);
+
+    FontRenderData.ViewProj = glm::ortho(0.0f, (f32)GameState->ContextAttribs.Width,
+                                         (f32)GameState->ContextAttribs.Height,
+                                         0.0f, -1.0f, 1.0f);
+
+    glUniformMatrix4fv(ViewProjLoc, 1, GL_FALSE, glm::value_ptr(FontRenderData.ViewProj));
 
     glDrawArrays(GL_TRIANGLES, 0, FontRenderData.VertexBufferCurrentPos / 4);
 
@@ -228,12 +232,23 @@ FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, 
     FillText(s, x, y, Size, Color, Width, Edge, BorderColor, Width + 0.2, Edge + 0.1);
 }
 
+internal_ f32
+GetScale(f32 FontSize, f32 Size)
+{
+    return Size/FontSize;
+}
+
 void
 FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, u32 BorderColor,
          f32 BorderWidth, f32 BorderEdge)
 {
     // TODO(rajat): Remove reference and use a pointer instead
     fontinfo& CurrentFont = FontRenderData.CurrentFont;
+    f32 Scale = GetScale(FontRenderData.CurrentFont.Size, Size);
+
+    f32 x1 = x;
+    f32 y1 = y;
+
     while(*s)
     {
         if(*s >= 32 && (int)*s < 128)
@@ -245,116 +260,35 @@ FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, 
             f32 x0 = c.x + CurrentFont.Padding[PAD_LEFT] - DESIRED_PADDING;
             f32 y0 = c.y + CurrentFont.Padding[PAD_TOP] - DESIRED_PADDING;
             f32 xoff = c.xoffset + CurrentFont.Padding[PAD_LEFT] - DESIRED_PADDING;
-            f32 yoff = c.yoffset + CurrentFont.Padding[PAD_TOP] - DESIRED_PADDING;
+            f32 yoff = c.yoffset - CurrentFont.Padding[PAD_TOP];
 
-            FillSingleFontQuadClipped(x + xoff * Size,
-                                      y + yoff * Size,
-                                      w * Size,
-                                      h * Size,
+            FillSingleFontQuadClipped(x + xoff * Scale,
+                                      y + yoff * Scale,
+                                      w * Scale,
+                                      h * Scale,
                                       &FontRenderData.Texture,
                                       x0 / CurrentFont.FontBitmapWidth,
                                       y0 / CurrentFont.FontBitmapHeight,
                                       (x0 + w) / CurrentFont.FontBitmapWidth,
                                       (y0 + h) / CurrentFont.FontBitmapHeight);
 
-            x += (c.xadvance - CurrentFont.PaddingWidth) * Size;
+            x += (c.xadvance - CurrentFont.PaddingWidth) * Scale;
+
+            if(((x + w) / GameState->ContextAttribs.Width) >= 0.5f && *s ==' ') {
+                f32 y0 = y1;
+                y = y0 + CurrentFont.LineHeight * Scale - CurrentFont.PaddingHeight * Scale;
+                y1 = y;
+                x = x1;
+            }
         }
         ++s;
     }
     FontRenderCommit(Color, Width, Edge, BorderColor, BorderWidth, BorderEdge);
 }
 // STUDY(rajat): stb_truetype and stb_textedit
-
-u8 TTFBuffer[2048 * 2048];
-stbtt_packedchar CharacterData[96];
-
-// TODO(rajat): Have a font stack
-fontinfo CurrentFont;
-texture CurrentFontTexture;
-
-texture
-LoadttfTexture(u8* FileMemory, f32 Size)
-{
-    stbtt_pack_context PackCtx;
-    stbtt_PackBegin(&PackCtx, TTFBuffer, 2048, 2048, 0, 0, NULL);
-    stbtt_PackSetOversampling(&PackCtx, 4, 4);
-    stbtt_PackFontRange(&PackCtx, FileMemory, 0, Size, 32, 96, CharacterData);
-    stbtt_PackEnd(&PackCtx);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    texture NewTexture = CreateTextureEx(TTFBuffer, GL_RED, 2048, 2048, GL_RED);
-    return NewTexture;
-}
-
-void
-CreateTextFonts(u8 *FontFileMemory, f32 Size)
-{
-    FontTexture = LoadttfTexture(FontFileMemory, Size);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, FontTexture.Id);
-
-    IsInitialized = true;
-}
-
 void
 LoadFont(const char* File)
 {
     GetFontInfo(File, &FontRenderData.CurrentFont);
     FontRenderData.Texture = CreateTexture(FontRenderData.CurrentFont.FontBitmap);
-}
-
-void
-DrawString(const char *String, f32 x, f32 y, f32 Scale, u32 Color)
-{
-    Assert(IsInitialized != false);
-
-    while(*String)
-    {
-        if(*String >= 32 && (int)*String < 128)
-        {
-            // TODO(rajat): Store and calculate them when loading fonts and create character mapping to reterive correct one
-            stbtt_aligned_quad q;
-            stbtt_GetPackedQuad(CharacterData, 2048, 2048, *String - 32, &x, &y, &q, 0);
-            // TODO(rajat): Scaling of characters, Scale value is ignored
-            // FillQuad(q.x0, q.y0, q.x1 - q.x0, q.y1 - q.y0, Color);
-            FillTexQuadClippedReserved(q.x0, q.y0 , q.x1 - q.x0, q.y1 - q.y0, Color, &FontTexture, q.s0, q.t0, q.s1, q.t1);
-        }
-
-        ++String;
-    }
-}
-
-void
-DrawStringEx(const char* String, f32 x, f32 y, f32 Scale, u32 Color)
-{
-    Assert(IsInitialized != false);
-
-    while(*String)
-    {
-        if(*String >= 32 && (int)*String < 128)
-        {
-            fontface c = CurrentFont.Fonts[*String];
-
-            f32 w = c.w - CurrentFont.PaddingWidth + (2 * DESIRED_PADDING);
-            f32 h = c.h - CurrentFont.PaddingHeight + (2 * DESIRED_PADDING);
-            f32 x0 = c.x + CurrentFont.Padding[PAD_LEFT] - DESIRED_PADDING;
-            f32 y0 = c.y + CurrentFont.Padding[PAD_TOP] - DESIRED_PADDING;
-            f32 xoff = c.xoffset + CurrentFont.Padding[PAD_LEFT] - DESIRED_PADDING;
-            f32 yoff = c.yoffset + CurrentFont.Padding[PAD_TOP] - DESIRED_PADDING;
-
-            FillTexQuadClipped(x + xoff * Scale,
-                               y + yoff * Scale,
-                               w * Scale,
-                               h * Scale,
-                               Color,
-                               &CurrentFontTexture,
-                               x0 / CurrentFont.FontBitmapWidth,
-                               y0 / CurrentFont.FontBitmapHeight,
-                               (x0 + w) / CurrentFont.FontBitmapWidth,
-                               (y0 + h) / CurrentFont.FontBitmapHeight);
-            x += (c.xadvance - CurrentFont.PaddingWidth) * Scale;
-        }
-        ++String;
-    }
 }

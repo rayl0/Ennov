@@ -136,8 +136,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         game_file* FontFragmentShader = (game_file*)PlatformLoadFile("shaders/font.frag", PushStruct_,
                                                                      &State->AssestStorage);
         CreateRenderContext((const char*)VertexShaderFile->Data, (const char*)FragmentShaderFile->Data);
-        CreateTextFonts((u8*)CurrentState->TextFontFile->Data, 32);
-
         GameState = State;
         LoadFont("assets/fonts/default.fnt");
         CreateFontRenderObjects((const char*)FontVertexShader->Data, (const char*)FontFragmentShader->Data);
@@ -286,8 +284,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     // thing with an actual global backend renderer
     sprintf(Buffer, LiveString, CurrentState->Lives);
 
-    DrawString(Buffer, 0.0f, 20.0f,
-               1.0f, 0xFFFFFFFF);
+    // DrawString(Buffer, 0.0f, 20.0f,
+               // 1.0f, 0xFFFFFFFF);
 
     const char* FpsString = "FPS: %u";
     if((1000/(State->dt * 1.0e2f)) >= 55.0f)
@@ -297,13 +295,13 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         sprintf(Buffer, FpsString, (u32)(1000/(State->dt * 1.0e2f)));
     }
     // TODO(rajat): Might not render stuff like this
-    DrawString(Buffer, 700, 570,
-               1.0f, 0xFFFFFFFF);
+    // DrawString(Buffer, 700, 570,
+               // 1.0f, 0xFFFFFFFF);
 
     if(NumActieTiles == 0)
     {
-        DrawString("You Win!", 300.0f, 300.0f, 1.0f, 0xFFFFFFFF);
-        DrawString("Press Terminate to close", 190.0f, 348.0f, 0.5f, 0xFFFFFFFF);
+        // DrawString("You Win!", 300.0f, 300.0f, 1.0f, 0xFFFFFFFF);
+        // DrawString("Press Terminate to close", 190.0f, 348.0f, 0.5f, 0xFFFFFFFF);
         CurrentState->IsPaused = true;
         CurrentState->Fired = false;
     }
@@ -311,7 +309,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     {
         if(CurrentState->IsPaused)
         {
-            DrawString("Paused!", 150, 150, 2.0f, 0xFFFFFFFF);
+            // DrawString("Paused!", 150, 150, 2.0f, 0xFFFFFFFF);
         }
     }
 
@@ -332,7 +330,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     UIBeginWindow("Hello UI", 200, 200);
 
     UIButton("hello", 100, 100, 100, 50);
-//
 //    // if(UIButton("Pressmeplease!"))
 //    // {
 //    //     UIBeginWindow("Hello Window 2");
@@ -341,20 +338,10 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 //
     UIEndWindow();
     UIEnd();
-//
-//    FlushRenderer(Batch);
 
-    // FillQuad(100, 100, 100, 100, 0x0000FFFF);
-    // FillQuad(100, 200, 100, 100, 0xF06FFFFF);
-    // FillQuad(100, 300, 100, 100, 0x005FFFFF);
-    // FillQuad(100, 400, 100, 100, 0x00FFFFFF);
-    // FillTexQuad(100, 500, 100, 100, 0x00FFFFFF, &CurrentState->Textures[1]);
-    // FillTexQuad(200, 500, 100, 100, 0x00FFFFFF, &CurrentState->Textures[2]);
-    // FillTexQuad(300, 500, 100, 100, &CurrentState->Textures[0]);
-    // FillTexQuad(500, 500, 100, 100, &CurrentState->Textures[2]);
+    static f32 PrevHeight = State->ContextAttribs.Height;
 
-    // FillTexQuadClipped(600, 500, 100, 100, &CurrentState->Textures[2], {0, 0, 50, 50});
+    FillText("Hello, my name is Rajat and I am going to battle you the next morning we will meet, so are you ready for the epic battle that the world has never seen!", 0.5, 0.5 * State->ContextAttribs.Height, 24 * State->ContextAttribs.Height / 600.0, 0x00FF00FF, 0.46, 0.19);
 
-
-    FillText("Some text with outline!", Ball->Pos.x, Ball->Pos.y, 1.0f, 0xFFF00FFF);
+    PrevHeight = State->ContextAttribs.Height;
 }

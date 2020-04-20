@@ -143,7 +143,7 @@ FillTexQuad(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture)
     if(rctx.NumBindTextureSlots == rctx.NumTextureSlots)
         RenderCommit();
 
-    for(int i = 1; i < rctx.NumBindTextureSlots + 1; ++i)
+    for(int i = 0; i < rctx.NumBindTextureSlots; ++i)
     {
         if(Texture->Id == rctx.TextureMap[i])
         {
@@ -153,8 +153,8 @@ FillTexQuad(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture)
 
     if(Index == -1.0f)
     {
-        rctx.TextureMap[rctx.NumBindTextureSlots + 1] = Texture->Id;
-        Index = rctx.NumBindTextureSlots + 1;
+        rctx.TextureMap[rctx.NumBindTextureSlots] = Texture->Id;
+        Index = rctx.NumBindTextureSlots;
         rctx.NumBindTextureSlots++;
     }
 
@@ -201,7 +201,7 @@ FillTexQuad(f32 x, f32 y, f32 w, f32 h, texture *Texture)
     if(rctx.NumBindTextureSlots == rctx.NumTextureSlots)
         RenderCommit();
 
-    for(int i = 1; i < rctx.NumBindTextureSlots + 1; ++i)
+    for(int i = 0; i < rctx.NumBindTextureSlots; ++i)
     {
         if(Texture->Id == rctx.TextureMap[i])
         {
@@ -211,8 +211,8 @@ FillTexQuad(f32 x, f32 y, f32 w, f32 h, texture *Texture)
 
     if(Index == -1.0f)
     {
-        rctx.TextureMap[rctx.NumBindTextureSlots + 1] = Texture->Id;
-        Index = rctx.NumBindTextureSlots + 1;
+        rctx.TextureMap[rctx.NumBindTextureSlots] = Texture->Id;
+        Index = rctx.NumBindTextureSlots;
         rctx.NumBindTextureSlots++;
     }
 
@@ -257,7 +257,7 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, u32 Color,
     if(rctx.NumBindTextureSlots == rctx.NumTextureSlots)
         RenderCommit();
 
-    for(int i = 1; i < rctx.NumBindTextureSlots + 1; ++i)
+    for(int i = 0; i < rctx.NumBindTextureSlots; ++i)
     {
         if(Texture->Id == rctx.TextureMap[i])
         {
@@ -267,8 +267,8 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, u32 Color,
 
     if(Index == -1.0f)
     {
-        rctx.TextureMap[rctx.NumBindTextureSlots + 1] = Texture->Id;
-        Index = rctx.NumBindTextureSlots + 1;
+        rctx.TextureMap[rctx.NumBindTextureSlots] = Texture->Id;
+        Index = rctx.NumBindTextureSlots;
         rctx.NumBindTextureSlots++;
     }
 
@@ -316,7 +316,7 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h,
     if(rctx.NumBindTextureSlots == rctx.NumTextureSlots)
         RenderCommit();
 
-    for(int i = 1; i < rctx.NumBindTextureSlots + 1; ++i)
+    for(int i = 0; i < rctx.NumBindTextureSlots; ++i)
     {
         if(Texture->Id == rctx.TextureMap[i])
         {
@@ -326,8 +326,8 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h,
 
     if(Index == -1.0f)
     {
-        rctx.TextureMap[rctx.NumBindTextureSlots + 1] = Texture->Id;
-        Index = rctx.NumBindTextureSlots + 1;
+        rctx.TextureMap[rctx.NumBindTextureSlots] = Texture->Id;
+        Index = rctx.NumBindTextureSlots;
         rctx.NumBindTextureSlots++;
     }
 
@@ -388,7 +388,7 @@ RenderCommit()
 
     glUseProgram(rctx.TexQuadShader);
 
-    for(int i = 1; i < rctx.NumBindTextureSlots + 1; ++i)
+    for(int i = 0; i < rctx.NumBindTextureSlots; ++i)
     {
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D, rctx.TextureMap[i]);
@@ -398,82 +398,6 @@ RenderCommit()
 
     rctx.VertexBufferCurrentPos = 0;
     rctx.NumBindTextureSlots = 0;
-}
-
-void
-FillTexQuadClippedReserved(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1)
-{
-    Assert(IsCtxInitialized == true);
-
-    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
-        RenderCommit();
-
-    // TODO(rajat): Implement for more than one reserved texture
-    // slots
-    f32 Index = 0.0f;
-
-    glm::mat4 Model = glm::mat4(1.0f);
-
-    Model = glm::translate(Model, glm::vec3(x, y, 0));
-    Model = glm::scale(Model, glm::vec3(w, h, 0));
-
-    glm::vec4 tvd[6];
-
-    u8 r, g, b, a;
-    DecodeRGBA(Color, &r, &g, &b, &a);
-
-    for(int i = 0; i < 6; ++i) {
-        tvd[i] = Model * qd[i];
-    }
-
-    f32 VertexData[54] = {
-        tvd[0].x, tvd[0].y, s0, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[1].x, tvd[1].y, s1, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[2].x, tvd[2].y, s0, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[3].x, tvd[3].y, s0, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[4].x, tvd[4].y, s1, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[5].x, tvd[5].y, s1, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
-    };
-
-    for(int i = 0; i < 54; i++)
-    {
-        rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
-    }
-
-    rctx.VertexBufferCurrentPos += 54;
-}
-
-void
-FillTexQuadClippedReservedPointed(f32 x0, f32 y0, f32 x1, f32 y1, u32 Color,
-                                  texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1)
-{
-    Assert(IsCtxInitialized == true);
-
-    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
-        RenderCommit();
-
-    // TODO(rajat): Implement for more than one reserved texture
-    // slots
-    f32 Index = 0.0f;
-
-    u8 r, g, b, a;
-    DecodeRGBA(Color, &r, &g, &b, &a);
-
-    f32 VertexData[54] = {
-        x0, y0, s0, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        x1, y0, s1, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        x1, y1, s1, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        x1, y1, s1, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        x0, y1, s0, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        x0, y0, s0, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
-    };
-
-    for(int i = 0; i < 54; i++)
-    {
-        rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
-    }
-
-    rctx.VertexBufferCurrentPos += 54;
 }
 
 /* Extended API */

@@ -60,12 +60,12 @@ b32 UIButton(const char* Title, f32 x, f32 y, f32 w, f32 h)
     if(RectangleContainsPoint({x, y, w, h}, {UIContext.io.Pointer.x, UIContext.io.Pointer.y}))
     {
         FillQuad(x, y, w, h, 0x000000FF);
-        FillText(Title, x, y, 1, 0xFFFFFFFF);
+        FillText(Title, x, y, 32, 0xFFFFFFFF);
         return true;
     }
 
     FillQuad(x, y, w, h, 0xFFFFFFFF);
-    FillText(Title, x, y, 1, 0x000000FF);
+    FillText(Title, x, y, 32, 0x000000FF);
 }
 
 void

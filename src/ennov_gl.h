@@ -24,7 +24,6 @@ struct render_context
     u32 VertexBufferCurrentPos;
 
     u32 TextureMap[32];
-    u8 StartIndex;
     s32 NumTextureSlots;
     u32 NumBindTextureSlots;
 
@@ -62,11 +61,11 @@ extern void
 FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1);
 
 /* Always uses the reserved texture slots */
-extern void
-FillTexQuadClippedReserved(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1);
+/* extern void */
+/* FillTexQuadClippedReserved(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1); */
 
-extern void
-FillTexQuadClippedReservedPointed(f32 x, f32 y, f32 x0, f32 y0, u32 Color, texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1);
+/* extern void */
+/* FillTexQuadClippedReservedPointed(f32 x, f32 y, f32 x0, f32 y0, u32 Color, texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1); */
 
 extern void
 RenderCommit();
@@ -95,6 +94,3 @@ CreateTextureEx(u8* Pixels, u32 PixelFormat, u32 Width, u32 Height, u32 TextureF
 
 internal_ u32
 CreateShaderProgram(const char* VertexShaderSource, const char* FragmentShaderSource);
-
-void
-DrawString(const char *String, f32 x, f32 y, f32 Scale, vec4 Color);
