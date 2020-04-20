@@ -3,13 +3,10 @@
 #include "ennov_math.h"
 #include "ennov_gl.h"
 
-struct character_glyph
-{
-    texture TextureId;
-    s32 Width, Height;
-    vec2 Bearing;
-    u32 Advance;
-};
+game_state* GameState;
+
+loaded_bitmap*
+LoadPixelsFrom(const char* FileName, game_areana* Areana);
 
 #define ENNOV_H
 #endif

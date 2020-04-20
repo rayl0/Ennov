@@ -329,12 +329,21 @@ PlatformLoadFile(const char* File, void*(Alloc)(game_areana*, memory_index), gam
         FileHandle = open(File, O_RDONLY);
         fstat(FileHandle, &FileState);
 
-        void* WriteAddress = Alloc(Areana, FileState.st_size);
+        // s32 size = lseek(FileHandle, 0, SEEK_END);
+        // s32 off = lseek(FileHandle, -size, SEEK_CUR);
+
+        // NOTE(rajat): Always allocate file size + 1 bytes for null terminator
+        void* WriteAddress = Alloc(Areana, FileState.st_size + 1);
         read(FileHandle, WriteAddress, FileState.st_size);
+
+        close(FileHandle);
 
         game_file* File = (game_file*)Alloc(Areana, sizeof(game_file));
         File->Data = WriteAddress;
         File->Size = FileState.st_size;
+
+        char* Data = (char*)File->Data;
+        Data[File->Size] = '\0';
 
         return File;
     }

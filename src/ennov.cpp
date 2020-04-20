@@ -5,12 +5,12 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
+#include "ennov_font_parser.cpp"
+
 #include "ennov_text.cpp"
 #include "ennov_math.h"
 #include "ennov_gl.cpp"
 #include "ennov_ui.cpp"
-
-#include "ennov_font_parser.cpp"
 
 #include "ennov_platform.h"
 #include "ennov.h"
@@ -131,22 +131,16 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         game_file* VertexShaderFile = (game_file*)PlatformLoadFile("shaders/gquad.vert",  PushStruct_, &State->AssestStorage);
         game_file* FragmentShaderFile = (game_file*)PlatformLoadFile("shaders/gquad.frag", PushStruct_, &State->AssestStorage);
 
-        char* Data = (char*)FragmentShaderFile->Data;
-        Data[FragmentShaderFile->Size - 1] = '\0';
-
+        game_file* FontVertexShader = (game_file*)PlatformLoadFile("shaders/font.vert", PushStruct_,
+                                                                   &State->AssestStorage);
+        game_file* FontFragmentShader = (game_file*)PlatformLoadFile("shaders/font.frag", PushStruct_,
+                                                                     &State->AssestStorage);
         CreateRenderContext((const char*)VertexShaderFile->Data, (const char*)FragmentShaderFile->Data);
         CreateTextFonts((u8*)CurrentState->TextFontFile->Data, 32);
 
-        fontinfo Info = {};
-        GetFontInfo("assets/fonts/default.fnt", &Info);
-
-        for(int i = 0; i < 128; i++)
-        {
-            printf("Char: %c, xoff: %f, w: %f\n",
-                   Info.Fonts[i].Id,
-                   Info.Fonts[i].xoffset,
-                   Info.Fonts[i].w);
-        }
+        GameState = State;
+        LoadFont("assets/fonts/default.fnt");
+        CreateFontRenderObjects((const char*)FontVertexShader->Data, (const char*)FontFragmentShader->Data);
 
         Memory->IsInitialized = true;
     }
@@ -321,6 +315,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
+    RenderCommit();
 
     // UIInit();
 
@@ -359,6 +354,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     // FillTexQuad(500, 500, 100, 100, &CurrentState->Textures[2]);
 
     // FillTexQuadClipped(600, 500, 100, 100, &CurrentState->Textures[2], {0, 0, 50, 50});
-    DrawString("hello world to you", Paddle->Pos.x, Paddle->Pos.y, 1, 0xFFFFFFFF);
-    RenderCommit();
+
+
+    FillText("Some text with outline!", Ball->Pos.x, Ball->Pos.y, 1.0f, 0xFFF00FFF);
 }

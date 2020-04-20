@@ -15,9 +15,6 @@ void main()
          OutputColor = FragColor;
       else
       {
-         if(SamplerIndex == 0)
-            OutputColor = FragColor * vec4(1.0f, 1.0f, 1.0f, texture(Textures[SamplerIndex], TextureCoord).r);
-         else
-            OutputColor = FragColor * texture(Textures[SamplerIndex], TextureCoord);
+         OutputColor = FragColor * texture(Textures[SamplerIndex], TextureCoord);
       }
 }

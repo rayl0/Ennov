@@ -1,4 +1,6 @@
 #include "ennov_platform.h"
+#include "ennov.h"
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -13,6 +15,10 @@ struct fontface
 
     f32 x, y; // Position of the glyph in the bitmap
     f32 w, h; // Width and height of the glyph in the bitmap
+
+    // f32 s0, t0;
+    // f32 s1, t1;
+
     f32 xoffset;
     f32 yoffset;
 
@@ -29,11 +35,12 @@ struct fontinfo
     s32 SpacingY;
 
     char FontName[50];
-
-    char FontBitmapFile[50];
+    loaded_bitmap* FontBitmap;
 
     u32 FontBitmapWidth;
     u32 FontBitmapHeight;
+
+    u32 LineHeight;
 
     fontface Fonts[128]; // Only ascii for now
 
@@ -162,8 +169,6 @@ GetFontInfo(const char *fntfile, fontinfo *FontInfo)
     {
         Split(Start, &Name, &Value, ' ');
 
-        printf("Name: %s\n", Name);
-
         if(!strcmp(Name, "info"))
         {
             while(!Split(Value, &Front, &End, ' '))
@@ -185,7 +190,6 @@ GetFontInfo(const char *fntfile, fontinfo *FontInfo)
                     s32 i = 0;
                     while(!Split(KeyEnd, &ArrayStart, &ArrayEnd, ','))
                     {
-                        printf("Value: %i\n", atoi(ArrayStart));
                         FontInfo->Padding[i] = atoi(ArrayStart);
                         KeyEnd = ArrayEnd;
                         i++;
@@ -213,24 +217,52 @@ GetFontInfo(const char *fntfile, fontinfo *FontInfo)
                 FontInfo->SpacingY = atoi(ArrayEnd);
             }
         }
-
-        if(!strcmp(Name, "common"))
+        else if(!strcmp(Name, "common"))
         {
             while(!Split(Value, &Front, &End, ' '))
             {
-                printf("Front %s\n", Front);
+                Split(Front, &KeyFront, &KeyEnd, '=');
+
+                if(!strcmp(KeyFront, "lineHeight"))
+                {
+                    FontInfo->LineHeight = (u32)atoi(KeyEnd);
+                }
+                else if(!strcmp(KeyFront, "scaleW"))
+                {
+                    FontInfo->FontBitmapWidth = (u32)atoi(KeyEnd);
+                }
+                else if(!strcmp(KeyFront, "scaleH"))
+                {
+                    FontInfo->FontBitmapHeight = (u32)atoi(KeyEnd);
+                }
 
                 Value = Lskip(End);
             }
         }
-
-        // TODO(rajat): Handle the edge case of the last character data
-        if(!strcmp(Name, "char"))
+        else if(!strcmp(Name, "page"))
         {
-            int FontId = 0;
             while(!Split(Value, &Front, &End, ' '))
             {
-                printf("Front %s\n", Front);
+                Split(Front, &KeyFront, &KeyEnd, '=');
+                Value = Lskip(End);
+            }
+            Split(Front, &KeyFront, &KeyEnd, '=');
+
+            // TODO(rajat): Load font bitmap
+            if(!strcmp(KeyFront, "file"))
+            {
+                // TODO(rajat): Relative path loading
+                // NOTE(rajat): Only reterives default.png as a loaded bitmap
+                FontInfo->FontBitmap = LoadPixelsFrom("./assets/fonts/default.png", &GameState->AssestStorage);
+            }
+        }
+        // TODO(rajat): Handle the edge case of the last character data
+        else if(!strcmp(Name, "char"))
+        {
+            static int FontId = 0;
+            while(!Split(Value, &Front, &End, ' '))
+            {
+                // printf("Front %s\n", Front);
                 Split(Front, &KeyFront, &KeyEnd, '=');
 
                 if(!strcmp(KeyFront, "id"))
@@ -266,6 +298,7 @@ GetFontInfo(const char *fntfile, fontinfo *FontInfo)
                 {
                     FontInfo->Fonts[FontId].xadvance = atoi(KeyEnd);
                 }
+
                 Value = Lskip(End);
             }
         }

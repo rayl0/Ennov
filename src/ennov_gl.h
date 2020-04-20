@@ -87,6 +87,8 @@ FillTexQuad(f32 *DestRect, texture *Texture);
 // implement FillTexQuadClipped in extended api and implement
 // bluk functions like FillQuads
 
+internal_ texture
+CreateTexture(loaded_bitmap* Bitmap);
 
 internal_ texture
 CreateTextureEx(u8* Pixels, u32 PixelFormat, u32 Width, u32 Height, u32 TextureFormat);
