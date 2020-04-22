@@ -63,13 +63,19 @@ struct breakout_game_state
     vec2 Direction;
     rect Ball;
     rect Paddle;
-    u32 Level[32];
+    u8 Level[32];
     s32 Lives;
     b32 IsPaused;
 };
 
-#define Velocity 15
-#define PaddleVelocity 150
+struct breakout_save_data
+{
+    u32 NumLives;
+    b32 IsPaused;
+    u8 LevelData[32];
+};
+
+#define PaddleVelocity 25
 
 #define WasPressed(Input, x) Input->Button.x.EndedDown
 
@@ -77,9 +83,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 {
     // NOTE(Rajat): Never do assertions within a loop increment
     // Assert(Count < 1);
-
-    //  OpenGLInitContext({State->ContextAttribs.Width, State->ContextAttribs.Height});
-    // DrawRectangle(draw_attribs);
 
     #if ENNOV_PLATFORM_ANDROID
     #endif
@@ -90,18 +93,27 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         InitializeAreana(&State->ScratchStorage, Memory->TransientStorage, Memory->TransientStorageSize);
         InitializeAreana(&State->AssestStorage, Memory->AssetMemory, Memory->AssetMemorySize);
 
+        CurrentState->Paddle = {0.0f, 550.0f, 100.0f, 50.0f};
+        CurrentState->Ball = {CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f, 20.0f, 20.0f};
+        CurrentState->Direction = {1.0f, 2.0f};
+        CurrentState->Fired = false;
+        CurrentState->Lives = 3;
+        CurrentState->IsPaused = false;
+        CurrentState->IsInitialized = true;
+
         // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
-        if(!CurrentState->HaveLoadState) {
-            CurrentState->Paddle = {0.0f, 550.0f, 100.0f, 50.0f};
-            CurrentState->Ball = {CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f, 20.0f, 20.0f};
-            CurrentState->Direction = {1.0f, 2.0f};
+        if(State->SaveDataSize) {
+            breakout_save_data* SaveData = (breakout_save_data*)State->GameSaveData;
 
-            CurrentState->Fired = false;
-            CurrentState->Lives = 3;
+            CurrentState->Lives = SaveData->NumLives;
+            CurrentState->IsPaused = SaveData->IsPaused;
 
-            CurrentState->IsInitialized = true;
-            CurrentState->IsPaused = false;
-
+            for(int i = 0; i < 32; ++i) {
+                CurrentState->Level[i] =  SaveData->LevelData[i];
+            }
+        }
+        else
+        {
             u32 TileMap[32] = {
                 1, 2, 3, 1, 4, 1, 2, 3,
                 5, 3, 5, 1, 3, 5, 4, 1,
@@ -144,7 +156,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     }
 
     glClear(GL_COLOR_BUFFER_BIT);
-    glClearColor(0, 0, 0, 0);
+    glClearColor(1, 0, 1, 1);
 
     rect* Ball = &CurrentState->Ball;
     rect* Paddle = &CurrentState->Paddle;
@@ -166,13 +178,19 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             CurrentState->Fired = true;
         }
         if(CurrentState->Fired) {
-            Ball->Pos.y -= Velocity * Direction->y * State->dt;
-            Ball->Pos.x += Velocity * Direction->x * State->dt;
+            f32 dv = normf(0, 0.16, State->dt);
+            dv = SMOOTHSTEP(dv);
+
+            Ball->Pos.y -= 3 * Direction->y * dv;
+            Ball->Pos.x += 3 * Direction->x * dv;
+
+            Ball->Pos.x = clampf(0, 800 - Ball->Dimensions.x, Ball->Pos.x);
+            Ball->Pos.y = clampf(0, 800 - Ball->Dimensions.y, Ball->Pos.y);
         }
-        if(Ball->Pos.x > 790.0f) Direction->x = -(Direction->x);
-        if(Ball->Pos.y < 0.0f) Direction->y = -(Direction->y);
-        if(Ball->Pos.x < 0.0f) Direction->x = -(Direction->x);
-        if(Ball->Pos.y > 600.0f) {
+        if(Ball->Pos.x >= 780.0f) Direction->x = -(Direction->x);
+        if(Ball->Pos.y <= 0.0f) Direction->y = -(Direction->y);
+        if(Ball->Pos.x <= 0.0f) Direction->x = -(Direction->x);
+        if(Ball->Pos.y >= 600.0f) {
             CurrentState->Fired = false;
             Ball->Pos = {100.0f, 550.0f - Ball->Dimensions.y};
             *Direction = { 1.0f, 2.0f};
@@ -198,37 +216,46 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
         if(Input->Button.MoveRight.EndedDown)
         {
-            Paddle->Pos.x += State->dt * PaddleVelocity;
-            if(Paddle->Pos.x >= 700.0f)
-                Paddle->Pos.x = 700.0f;
+            f32 dv = normf(0, 0.16, State->dt);
+            dv = SMOOTHSTEP(dv);
+            Paddle->Pos.x += dv * PaddleVelocity;
+            Paddle->Pos.x = clampf(0, 800 - Paddle->Dimensions.x, Paddle->Pos.x);
         }
         if(Input->Button.MoveLeft.EndedDown)
         {
-            Paddle->Pos.x -= State->dt * PaddleVelocity;
-            if(Paddle->Pos.x <= 0.0f)
-                Paddle->Pos.x = 0.0f;
+            f32 dv = normf(0, 0.16, State->dt);
+            dv = SMOOTHSTEP(dv);
+            Paddle->Pos.x -= dv * PaddleVelocity;
+            Paddle->Pos.x = clampf(0, 800 - Paddle->Dimensions.x, Paddle->Pos.x);
         }
     }
 
     // TODO(rajat): Introduce new buttons in game_input struct for this
     if(WasPressed(Input, Select))
     {
-        if(*ConfigBits == PlatformFullScreenToggle_BIT)
-        {
-            *ConfigBits = 0;
-        }
-        else
-        {
-            *ConfigBits = PlatformFullScreenToggle_BIT;
-        }
+        *ConfigBits = *ConfigBits ^ PlatformFullScreenToggle_BIT;
     }
 
     u32 NumActieTiles = 0;
 
-    // TODO(rajat): Add src clipping to the renderer
-    FillTexQuad(0, 0, 800, 600, &CurrentState->Textures[0]);
+    vec2 StartPosition = {100, 300};
+    vec2 EndPosition = {700, 300};
 
-    u32* Level = CurrentState->Level;
+    static f32 i = 0;
+
+    f32 x = 600 * i;
+
+    i += .01;
+
+    if(i > 1.0)
+        i = 0;
+
+    // TODO(rajat): Add src clipping to the renderer
+    FillTexQuad(00, 00, 800, 600, &CurrentState->Textures[0]);
+
+    u8* Level = CurrentState->Level;
+
+    static f32 t = 0;
 
     for(int i = 0; i < 4; ++i)
     {
@@ -248,6 +275,22 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
                 Color = 0xF06FFFFF;
             else if(Level[i * 8 + j] == 5)
                 Color = 0x00FFFFFF;
+
+            f32 n = normf(0, 2, t);
+            n = SMOOTHSTEP(n);
+
+            // NOTE(rajat): Always remember the range of u8 0...255, not 256
+            u8 S = (u8)lerpf(0, 255, n);
+
+            printf("Alpha: %u\n", S);
+
+            u8 r, g, b, a;
+            DecodeRGBA(Color, &r, &g, &b, &a);
+
+            a = S;
+            Color = EncodeRGBA(r, g, b, a);
+
+
             FillTexQuad(Pos.x, Pos.y, Dim.x, Dim.y, Color, &CurrentState->Textures[1]);
             if(RectangleColloide({Pos, Dim}, CurrentState->Ball))
             {
@@ -264,18 +307,57 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
+    t += (State->dt / 10);
+    t = clampf(0, 2, t);
+
     if(Input->Button.Terminate.EndedDown)
     {
         if(NumActieTiles == 0)
-            CurrentState->HaveLoadState = false;
+            State->GameSaveData = NULL;
         else
-            CurrentState->HaveLoadState = true;
+        {
+            breakout_save_data* SaveData = (breakout_save_data*)State->GameSaveData;
+
+            SaveData->NumLives = CurrentState->Lives;
+            SaveData->IsPaused = CurrentState->IsPaused;
+
+            for(int i = 0; i < 32; i++)
+                SaveData->LevelData[i] = CurrentState->Level[i];
+
+            State->SaveDataSize = sizeof(breakout_save_data);
+        }
+
         Ball->Pos = {Paddle->Pos.x + Paddle->Dimensions.x / 2, 550.0f - Ball->Dimensions.y};
         CurrentState->Fired = false;
     }
 
     FillTexQuad(Paddle->data, &CurrentState->Textures[2]);
     FillTexQuad(Ball->data, &CurrentState->Textures[0]);
+
+    static u32 WasHit = 0;
+
+    if(!WasHit)
+    if(RectangleContainsPoint({200, 200, 100, 50}, {Input->Cursor.X, Input->Cursor.Y}))
+        FillQuad(200, 200, 100, 50, 0x000000FF);
+    else
+        FillQuad(200, 200, 100, 50, 0xFFFFFFFF);
+    else
+        FillQuad(200, 200, 100, 50, 0x000000FF);
+
+    RenderCommit();
+
+    if(!WasHit)
+    if(RectangleContainsPoint({200, 200, 100, 50}, {Input->Cursor.X, Input->Cursor.Y}))
+        FillText("Button", 200, 200, 32, 0xFFFFFFFF);
+    else
+        FillText("Button", 200, 200, 32, 0x0000000FF);
+    else
+        FillText("Button", 200, 200, 32, 0x0000FFFF);
+
+
+    if(RectangleContainsPoint({200, 200, 100, 50}, {Input->Cursor.X, Input->Cursor.Y}) && Input->Cursor.Hit)
+        WasHit = WasHit ^ 1;
+
 
     const char* LiveString = "Lives: %i";
     char Buffer[50];
@@ -284,8 +366,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     // thing with an actual global backend renderer
     sprintf(Buffer, LiveString, CurrentState->Lives);
 
-    // DrawString(Buffer, 0.0f, 20.0f,
-               // 1.0f, 0xFFFFFFFF);
+    FillText(Buffer, 10.0f, 10.0f,
+             32, 0xFFFFFFFF, 0x007A7AFF);
 
     const char* FpsString = "FPS: %u";
     if((1000/(State->dt * 1.0e2f)) >= 55.0f)
@@ -295,13 +377,12 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         sprintf(Buffer, FpsString, (u32)(1000/(State->dt * 1.0e2f)));
     }
     // TODO(rajat): Might not render stuff like this
-    // DrawString(Buffer, 700, 570,
-               // 1.0f, 0xFFFFFFFF);
+    FillText(Buffer, 700, 570,
+               32.0f, 0xFFFFFFFF);
 
     if(NumActieTiles == 0)
     {
-        // DrawString("You Win!", 300.0f, 300.0f, 1.0f, 0xFFFFFFFF);
-        // DrawString("Press Terminate to close", 190.0f, 348.0f, 0.5f, 0xFFFFFFFF);
+        FillText("You Win!\n Press Terminate to close", lerpf(0.0f, 800.0f, 0.42), lerpf(0.0f, 600.0f, 0.42), 32, 0xFFFFFFFF);
         CurrentState->IsPaused = true;
         CurrentState->Fired = false;
     }
@@ -309,11 +390,10 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     {
         if(CurrentState->IsPaused)
         {
-            // DrawString("Paused!", 150, 150, 2.0f, 0xFFFFFFFF);
+            FillText("Paused!", 0.35 * State->ContextAttribs.Width, .35 * State->ContextAttribs.Height, 64.0f, 0xFFFFFFFF);
         }
     }
 
-    RenderCommit();
 
     // UIInit();
 
@@ -341,7 +421,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
     static f32 PrevHeight = State->ContextAttribs.Height;
 
-    FillText("Hello, my name is Rajat and I am going to battle you the next morning we will meet, so are you ready for the epic battle that the world has never seen!", 0.5, 0.5 * State->ContextAttribs.Height, 24 * State->ContextAttribs.Height / 600.0, 0x00FF00FF, 0.46, 0.19);
+    // FillText("Hello, my name is Rajat and I am going to battle you the next morning we will meet, so are you ready for the epic battle that the world has never seen!", 0.5, 0.5 * State->ContextAttribs.Height, 44 * State->ContextAttribs.Height / 600.0, 0x00FF00FF, 0.3, 0.29);
 
     PrevHeight = State->ContextAttribs.Height;
 }

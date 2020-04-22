@@ -318,8 +318,10 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
     }
 }
 
+
+// NOTE(Rajat): For binary and other files
 void*
-PlatformLoadFile(const char* File, void*(Alloc)(game_areana*, memory_index), game_areana* Areana)
+PlatformLoadFileA(const char* File, void*(Alloc)(game_areana*, memory_index), game_areana* Areana)
 {
     if(Alloc)
     {
@@ -342,12 +344,25 @@ PlatformLoadFile(const char* File, void*(Alloc)(game_areana*, memory_index), gam
         File->Data = WriteAddress;
         File->Size = FileState.st_size;
 
-        char* Data = (char*)File->Data;
-        Data[File->Size] = '\0';
-
         return File;
     }
     return NULL;
+}
+
+
+void*
+PlatformLoadFile(const char* File, void*(Alloc)(game_areana*, memory_index), game_areana* Areana)
+{
+   if(Alloc)
+   {
+       game_file* File2 = (game_file*)PlatformLoadFileA(File, Alloc, Areana);
+
+       char* Data = (char*)File2->Data;
+       Data[File2->Size] = '\0';
+
+       return File2;
+   }
+   return NULL;
 }
 
 // NOTE(rajat): Adopt style used in this function and leave everything else
@@ -406,23 +421,29 @@ main(int argc, char* argv[])
                                   MAP_ANON|MAP_PRIVATE, 0, 0);
     GameMemory.IsInitialized = false;
 
+    game_state GameState = {};
+
     // TODO(Rajat): Not final game saving and loading system
-    int SaveFileHandle = open("./GameState.txt", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
+    int SaveFileHandle = open("./ennov.sav", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
 
     // TODO(rajat): Consider using directory operations and lseek operations
     // TODO(rajat): Check the file exists or has read or write permissions
     struct stat SaveFileStat;
     fstat(SaveFileHandle, &SaveFileStat);
 
-    read(SaveFileHandle, GameMemory.PermanentStorage, SaveFileStat.st_size);
+    GameState.GameSaveData = malloc(4096);
+
+    if(SaveFileStat.st_size != 0)
+        read(SaveFileHandle, GameState.GameSaveData, SaveFileStat.st_size);
+
+    GameState.SaveDataSize = SaveFileStat.st_size;
+
     close(SaveFileHandle);
 
     game_input Input[2] = {};
     game_input* OldInput = &Input[0];
     game_input* NewInput = &Input[1];
     NewInput->Cursor = {-100.0f, -100.0f};
-
-    game_state GameState = {};
 
     timespec LastTime;
     f32 LastTimeInMs;
@@ -451,7 +472,7 @@ main(int argc, char* argv[])
         // glCullFace(GL_BACK);
         glXSwapBuffers(State.Display_, State.Window_);
 
-        if(ConfigBits == PlatformFullScreenToggle_BIT)
+        if(ConfigBits & PlatformFullScreenToggle_BIT)
         {
             X11ToggleFullScreen(State.Display_, State.Window_);
         }
@@ -478,9 +499,11 @@ main(int argc, char* argv[])
     }
 
     // TODO(Rajat): Not final save game functionality but the simplest and dumbest
-    SaveFileHandle = open("./GameState.txt", O_WRONLY | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
-    write(SaveFileHandle, GameMemory.PermanentStorage, MEGABYTES_TO_BTYES(1));
+    SaveFileHandle = open("./ennov.sav", O_WRONLY | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+    write(SaveFileHandle, GameState.GameSaveData, GameState.SaveDataSize);
     close(SaveFileHandle);
+
+    free(GameState.GameSaveData);
 
     // NOTE(Rajat): Don't forget to free resources after use
     munmap(GameMemory.PermanentStorage, GameMemory.PermanentStorageSize);

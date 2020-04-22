@@ -1,12 +1,7 @@
 #include "ennov.h"
 #include "ennov_gl.h"
+#include "ennov_utils.h"
 #include "glad/glad.h"
-
-#define STB_RECT_PACK_IMPLEMENTATION
-#include "stb_rect_pack.h"
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
 
 #include <string.h>
 
@@ -167,12 +162,19 @@ void
 FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, u32 BorderColor,
          f32 BorderWidth, f32 BorderEdge);
 
-
 void
 FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color)
 {
+    f32 Width = 0.46, Edge = 0.19;
+    f32 Scale = normf(0, FontRenderData.CurrentFont.Size, Size);
+    if(Scale >= 0.3f)
+    {
+        Width = 0.5;
+        Edge = 0.1;
+    }
+
     FillText(s, x, y, Size, Color
-             ,0.5, 0.1, 0x0000000, 0.0, 0.1);
+             , Width, Edge, 0x0000000, 0.0, 0.1);
 }
 
 void
@@ -244,7 +246,7 @@ FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, 
 {
     // TODO(rajat): Remove reference and use a pointer instead
     fontinfo& CurrentFont = FontRenderData.CurrentFont;
-    f32 Scale = GetScale(FontRenderData.CurrentFont.Size, Size);
+    f32 Scale = normf(0, FontRenderData.CurrentFont.Size, Size);
 
     f32 x1 = x;
     f32 y1 = y;
@@ -274,7 +276,7 @@ FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, 
 
             x += (c.xadvance - CurrentFont.PaddingWidth) * Scale;
 
-            if(((x + w) / GameState->ContextAttribs.Width) >= 0.5f && *s ==' ') {
+            if(((x + w) / GameState->ContextAttribs.Width) >= 1.0f && *s ==' ') {
                 f32 y0 = y1;
                 y = y0 + CurrentFont.LineHeight * Scale - CurrentFont.PaddingHeight * Scale;
                 y1 = y;

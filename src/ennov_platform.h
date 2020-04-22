@@ -182,6 +182,8 @@ typedef struct game_state
         int32 Width;
         int32 Height;
     }ContextAttribs;
+    void* GameSaveData;
+    u32 SaveDataSize;
 }game_state;
 
 extern void GameUpdateAndRender(game_memory* Memory, game_state* State, game_input* Input, u32 *ConfigBits);
