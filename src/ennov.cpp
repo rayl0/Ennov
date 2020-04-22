@@ -156,7 +156,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     }
 
     glClear(GL_COLOR_BUFFER_BIT);
-    glClearColor(1, 0, 1, 1);
+    glClearColor(0, 0, 0, 1);
 
     rect* Ball = &CurrentState->Ball;
     rect* Paddle = &CurrentState->Paddle;
@@ -250,12 +250,29 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     if(i > 1.0)
         i = 0;
 
+    static f32 t = 0;
+
+    f32 n = normf(0, 1.5, t);
+    n = SMOOTHSTEP(n);
+
+    // NOTE(rajat): Always remember the range of u8 0...255, not 256
+    u8 S = (u8)lerpf(0, 255, 1 - n);
+
+    u8 r = 0 * n, g = 0 * n, b = 0 * n;
+    u32 Color = EncodeRGBA(r, g, b, S);
+
+    t += (State->dt / 10);
+    t = clampf(0, 1.5, t);
+
+
+    u32 Color2 = EncodeRGBA(255 * n, 255 * n, 255 * n, 255 * n);
+
     // TODO(rajat): Add src clipping to the renderer
-    FillTexQuad(00, 00, 800, 600, &CurrentState->Textures[0]);
+    FillTexQuad(00, 00, 800, 600, Color2, &CurrentState->Textures[0]);
+
+    printf("Alpha: %u\n", S);
 
     u8* Level = CurrentState->Level;
-
-    static f32 t = 0;
 
     for(int i = 0; i < 4; ++i)
     {
@@ -276,20 +293,11 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             else if(Level[i * 8 + j] == 5)
                 Color = 0x00FFFFFF;
 
-            f32 n = normf(0, 2, t);
-            n = SMOOTHSTEP(n);
-
-            // NOTE(rajat): Always remember the range of u8 0...255, not 256
-            u8 S = (u8)lerpf(0, 255, n);
-
-            printf("Alpha: %u\n", S);
-
             u8 r, g, b, a;
             DecodeRGBA(Color, &r, &g, &b, &a);
 
-            a = S;
+            a = 255 * n;
             Color = EncodeRGBA(r, g, b, a);
-
 
             FillTexQuad(Pos.x, Pos.y, Dim.x, Dim.y, Color, &CurrentState->Textures[1]);
             if(RectangleColloide({Pos, Dim}, CurrentState->Ball))
@@ -307,8 +315,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
-    t += (State->dt / 10);
-    t = clampf(0, 2, t);
 
     if(Input->Button.Terminate.EndedDown)
     {
@@ -331,8 +337,14 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->Fired = false;
     }
 
-    FillTexQuad(Paddle->data, &CurrentState->Textures[2]);
-    FillTexQuad(Ball->data, &CurrentState->Textures[0]);
+    FillTexQuad(Paddle->Pos.x, Paddle->Pos.y,
+                Paddle->Dimensions.x, Paddle->Dimensions.y,
+                Color2, &CurrentState->Textures[2]);
+    FillTexQuad(Ball->Pos.x, Ball->Pos.y,
+                Ball->Dimensions.x, Ball->Dimensions.y,
+                Color2, &CurrentState->Textures[0]);
+
+    FillQuad(0, 0, 800, 600, Color);
 
     static u32 WasHit = 0;
 
