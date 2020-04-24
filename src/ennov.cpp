@@ -20,6 +20,7 @@
 #include "stb_image.h"
 
 #define SMOOTHSTEP(x) ((x) * (x) * (3 - 2 * (x)))
+static bool Toggle = false;
 
 loaded_bitmap*
 LoadPixelsFrom(const char* FileName, game_areana* Areana)
@@ -178,14 +179,14 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             CurrentState->Fired = true;
         }
         if(CurrentState->Fired) {
-            f32 dv = normf(0, 0.16, State->dt);
+            f32 dv = normf(State->dt, 0, 0.16);
             dv = SMOOTHSTEP(dv);
 
             Ball->Pos.y -= 3 * Direction->y * dv;
             Ball->Pos.x += 3 * Direction->x * dv;
 
-            Ball->Pos.x = clampf(0, 800 - Ball->Dimensions.x, Ball->Pos.x);
-            Ball->Pos.y = clampf(0, 800 - Ball->Dimensions.y, Ball->Pos.y);
+            Ball->Pos.x = clampf(Ball->Pos.x, 0, 800 - Ball->Dimensions.x);
+            Ball->Pos.y = clampf(Ball->Pos.y, 0, 800 - Ball->Dimensions.y);
         }
         if(Ball->Pos.x >= 780.0f) Direction->x = -(Direction->x);
         if(Ball->Pos.y <= 0.0f) Direction->y = -(Direction->y);
@@ -216,17 +217,17 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
         if(Input->Button.MoveRight.EndedDown)
         {
-            f32 dv = normf(0, 0.16, State->dt);
+            f32 dv = normf(State->dt, 0, 0.16);
             dv = SMOOTHSTEP(dv);
             Paddle->Pos.x += dv * PaddleVelocity;
-            Paddle->Pos.x = clampf(0, 800 - Paddle->Dimensions.x, Paddle->Pos.x);
+            Paddle->Pos.x = clampf(Paddle->Pos.x, 0, 800 - Paddle->Dimensions.x);
         }
         if(Input->Button.MoveLeft.EndedDown)
         {
-            f32 dv = normf(0, 0.16, State->dt);
+            f32 dv = normf(State->dt, 0, 0.16);
             dv = SMOOTHSTEP(dv);
             Paddle->Pos.x -= dv * PaddleVelocity;
-            Paddle->Pos.x = clampf(0, 800 - Paddle->Dimensions.x, Paddle->Pos.x);
+            Paddle->Pos.x = clampf(Paddle->Pos.x, 0, 800 - Paddle->Dimensions.x);
         }
     }
 
@@ -252,17 +253,17 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
     static f32 t = 0;
 
-    f32 n = normf(0, 1.5, t);
+    f32 n = normf(t, 0, 1.5);
     n = SMOOTHSTEP(n);
 
     // NOTE(rajat): Always remember the range of u8 0...255, not 256
-    u8 S = (u8)lerpf(0, 255, 1 - n);
+    u8 S = (u8)lerpf(1 - n, 0, 255);
 
     u8 r = 0 * n, g = 0 * n, b = 0 * n;
     u32 Color = EncodeRGBA(r, g, b, S);
 
     t += (State->dt / 10);
-    t = clampf(0, 1.5, t);
+    t = clampf(t, 0, 1.5);
 
 
     u32 Color2 = EncodeRGBA(255 * n, 255 * n, 255 * n, 255 * n);
@@ -270,7 +271,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     // TODO(rajat): Add src clipping to the renderer
     FillTexQuad(00, 00, 800, 600, Color2, &CurrentState->Textures[0]);
 
-    printf("Alpha: %u\n", S);
+    // printf("Alpha: %u\n", S);
 
     u8* Level = CurrentState->Level;
 
@@ -315,6 +316,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
+    CurrentState->IsPaused = Toggle;
+
 
     if(Input->Button.Terminate.EndedDown)
     {
@@ -356,7 +359,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     else
         FillQuad(200, 200, 100, 50, 0x000000FF);
 
-    RenderCommit();
 
     if(!WasHit)
     if(RectangleContainsPoint({200, 200, 100, 50}, {Input->Cursor.X, Input->Cursor.Y}))
@@ -366,20 +368,185 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     else
         FillText("Button", 200, 200, 32, 0x0000FFFF);
 
+    f32 ystep = 0;
+    f32 wspacing = 20;
+
+    static f32 winx = 400, winy = 100;
+    f32 winw = 200, winh = 400;
+    static b32 WinToggle = 0;
+    static u32 Active = 0;
+
+    if(RectangleContainsPoint({winx + winw / 2 - 20 / 2, winy, 20, 20}, Input->Cursor.at))
+    {
+        if(Input->Cursor.Drag)
+        {
+            WinToggle = true;
+        }
+    }
+    if(!Input->Cursor.Drag && WinToggle)
+        WinToggle = false;
+
+    if(WinToggle)
+    {
+        winx += clampf(Input->Cursor.X, 0, 800) - (winx + winw / 2 - 20 / 2);
+        winy = clampf(Input->Cursor.Y, 0, 600 - winh);
+    }
+
+    FillQuad(winx, winy, winw, winh, 0x141414FF);
+    FillQuad(winx + winw / 2 - 20 / 2, winy, 20, 20, 0x007A7A7F);
 
     if(RectangleContainsPoint({200, 200, 100, 50}, {Input->Cursor.X, Input->Cursor.Y}) && Input->Cursor.Hit)
         WasHit = WasHit ^ 1;
 
+    f32 wslid = winw * 0.85, hslid = 20;
+    f32 xslid = winx + (winw) / 2 - wslid / 2, yslid = winy + wspacing + 10;
+    ystep += winy + hslid + wspacing * 2 + 10;
+
+    static u32 BasicColor = 0x141414FF;
+    static u32 HilightColor = 0x007A7A3F;
+    static u32 Color3 = BasicColor;
+
+    FillQuad(xslid, yslid, wslid, hslid, Color3);
+
+    f32 wper = 0.85 * wslid;
+    f32 hper = lerpf(0.25, 0, hslid);
+    f32 xper = xslid + wslid / 2 - wper / 2;
+    f32 yper = yslid + hslid / 2 - hper / 2;
+
+    FillQuad(xper, yper, wper, hper, 0x007A7A5F);
+
+    f32 wtogg = lerpf(0.05, 0, wper);
+    f32 htogg = lerpf(0.7, 0, hslid);
+    static f32 xtogg = xper;
+    f32 ytogg = yslid + hslid / 2 - htogg / 2;
+
+    static b32 Toggled = false;
+    f32 Color5 = 0x00AFAFFF;
+
+    if(Toggled)
+    {
+        xtogg = clampf(Input->Cursor.X, xper, xper + wper - wtogg);
+        Color5 = 0x00FFFFFF;
+    }
+
+    static f32 xtogglehit = 0;
+
+    if(RectangleContainsPoint({xslid, yslid, wslid, hslid}, {Input->Cursor.X, Input->Cursor.Y}))
+    {
+        if(Toggled)
+        {
+        }
+        else if(Input->Cursor.Drag)
+        {
+            xtogg = clampf(Input->Cursor.X, xper, xper + wper - wtogg);
+        }
+
+        Color3 = HilightColor;
+    }
+    else
+    {
+        Color3 = BasicColor;
+    }
+
+    if(RectangleContainsPoint({xtogg, ytogg, wtogg, htogg}, {Input->Cursor.X, Input->Cursor.Y}))
+    {
+        if(Input->Cursor.Drag)
+        {
+            Toggled = true;
+        }
+    }
+
+    if(!Input->Cursor.Drag && Toggled) {
+        Toggled = false;
+    }
+
+    FillQuad(xtogg, ytogg, wtogg, htogg, Color5);
+    FillQuad(xper, yper, (xtogg - xper), hper, 0x009F9FFF);
+
+    f32 FontSize;
+
+    char Buffer[50];
+
+    FontSize = mapf(xtogg - xper + wtogg, wtogg, wper, 14, 72);
+    sprintf(Buffer, "%f", FontSize);
+
+    FillQuad(xslid + wslid + 10, yslid, 30, hslid, 0x0000004F);
+
+    f32 Color4 = HilightColor + 20;
+    f32 butwhw = winw * 0.85, butwhh = 20;
+    f32 butwhx = winx + winw / 2 - butwhw / 2 - 10 / 2; f32 butwhy = ystep;
+
+    ystep += butwhh + wspacing;
+
+    f32 butw = butwhw * 0.075;
+    f32 butx = butwhx;
+
+    f32 ibutw = butwhw * (1 - 0.075);
+    f32 ibutx = butwhx + butw + 10;
+
+    FillQuad(butx, butwhy, butw, butwhh, Color4);
+    FillQuad(ibutx, butwhy, ibutw, butwhh, Color4);
+
+    if(RectangleContainsPoint({butx, butwhy, butw, butwhh}, Input->Cursor.at))
+    {
+        Color4 = HilightColor;
+
+        if(Input->Cursor.Hit)
+        {
+            if(Input->Cursor.HitMask == LEFT_BUTTON_MASK)
+                Toggle = Toggle ^ true;
+        }
+    }
+
+    else if(WasPressed(Input, A))
+    {
+        Toggle = Toggle ^ true;
+    }
+
+    if(Toggle)
+        FillQuad(butx + (butw / 2) - (0.50 * butw) / 2,
+                 butwhy + (butwhh / 2) - (0.50 * butwhh) / 2,
+                 0.50 * butw, 0.50 * butwhh, 0x00FFFFFF);
+
+    f32 Spacing = 5;
+    f32 bwhole = (winw * 0.85), bh = 50;
+    f32 bw = bwhole / 5 - Spacing;
+    f32 bx = winx + winw / 2 - bwhole / 2, by = ystep;
+    f32 yofffac = 0;
+
+    f32 Color6 = HilightColor;
+
+    for(int i = 0; i < 5; i++)
+    {
+        if(RectangleContainsPoint({bx + i * bw + Spacing * i, by, bw, bh},
+                                  Input->Cursor.at))
+        {
+            yofffac = -10;
+            Color6 = 0x00FFFFFF;
+        }
+        else
+        {
+            yofffac = 0;
+            Color6 = HilightColor;
+        }
+        FillQuad(bx + i * bw + (Spacing) * i,
+                 by + yofffac,
+                 bw, bh, Color6);
+    }
+
+
+    RenderCommit();
+
+    FillText(Buffer, xslid + wslid + 10 + 2, yslid, 15, 0xFFFFFFFF);
 
     const char* LiveString = "Lives: %i";
-    char Buffer[50];
 
     // NOTE(rajat): It will be a good idea to replace this text renderer pointing
     // thing with an actual global backend renderer
     sprintf(Buffer, LiveString, CurrentState->Lives);
 
     FillText(Buffer, 10.0f, 10.0f,
-             32, 0xFFFFFFFF, 0x007A7AFF);
+             FontSize, 0xFFFFFFFF, 0x007A7AFF);
 
     const char* FpsString = "FPS: %u";
     if((1000/(State->dt * 1.0e2f)) >= 55.0f)
@@ -394,7 +561,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
     if(NumActieTiles == 0)
     {
-        FillText("You Win!\n Press Terminate to close", lerpf(0.0f, 800.0f, 0.42), lerpf(0.0f, 600.0f, 0.42), 32, 0xFFFFFFFF);
+        FillText("You Win!\n Press Terminate to close", 800 * 0.42, 800 * 0.42, 32, 0xFFFFFFFF);
         CurrentState->IsPaused = true;
         CurrentState->Fired = false;
     }

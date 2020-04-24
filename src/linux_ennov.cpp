@@ -10,6 +10,7 @@
  */
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/XKBlib.h>
 #include <X11/Xatom.h>
 #include <X11/keysymdef.h>
 #include <stdint.h>
@@ -223,6 +224,7 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
     local_persist XEvent Event;
     NewInput->Button  = {};
     NewInput->Cursor.Hit = false;
+    NewInput->Cursor.HitMask = 0;
 
     while (XPending(State->Display_) > 0) {
         XNextEvent(State->Display_, &Event);
@@ -289,13 +291,33 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
             break;
         case KeyRelease:
             break;
-        case ButtonPress:
-            break;
+        case ButtonPress: {
+            XButtonPressedEvent ButtonPressed = (XButtonPressedEvent)Event.xbutton;
+            NewInput->Cursor.X = (f32)ButtonPressed.x;
+            NewInput->Cursor.Y = (f32)ButtonPressed.y;
+            NewInput->Cursor.Drag = true;
+
+            if(ButtonPressed.button == Button1)
+                NewInput->Cursor.DragMask = LEFT_BUTTON_MASK;
+
+            if(ButtonPressed.button == Button2)
+                NewInput->Cursor.DragMask = RIGHT_BUTTON_MASK;
+
+        }   break;
         case ButtonRelease: {
-            XButtonReleasedEvent MouseHit = (XButtonReleasedEvent)Event.xbutton;
-            NewInput->Cursor.X = MouseHit.x;
-            NewInput->Cursor.Y = MouseHit.y;
+            XButtonReleasedEvent ButtonReleased = (XButtonReleasedEvent)Event.xbutton;
+            NewInput->Cursor.X = (f32)ButtonReleased.x;
+            NewInput->Cursor.Y = (f32)ButtonReleased.y;
             NewInput->Cursor.Hit = true;
+
+            if(ButtonReleased.button == Button1)
+                NewInput->Cursor.HitMask = LEFT_BUTTON_MASK;
+
+            if(ButtonReleased.button == Button2)
+                NewInput->Cursor.HitMask = RIGHT_BUTTON_MASK;
+
+            NewInput->Cursor.Drag = false;
+            NewInput->Cursor.DragMask = 0;
         }   break;
         case EnterNotify: {
             XEnterWindowEvent MouseIn = (XEnterWindowEvent)Event.xcrossing;
@@ -405,6 +427,8 @@ main(int argc, char* argv[])
     // NOTE(Rajat): Always load OpenGL after creating a context and making it current
     gladLoadGL();
 
+    XkbSetDetectableAutoRepeat(State.Display_, True, NULL);
+
     // TODO(Rajat): Query addresses for virtual allocating
     game_memory GameMemory = {};
     GameMemory.PermanentStorageSize = MEGABYTES_TO_BTYES(512);
@@ -491,10 +515,11 @@ main(int argc, char* argv[])
 
         LastTimeInMs = CurrentTimeInMs;
 
-        game_input* Temp;
-        Temp = OldInput;
-        OldInput = NewInput;
-        NewInput = Temp;
+        // BUG(Rajat): Input bug
+        // game_input* Temp;
+        // Temp = OldInput;
+        // OldInput = NewInput;
+        // NewInput = Temp;
         // dlclose(GameLibrary);
     }
 

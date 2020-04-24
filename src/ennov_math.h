@@ -1,9 +1,10 @@
+#pragma once
 #if !defined(ENNOV_MATH_H)
 
 // TODO(rajat): Some things are needed no matter what
 #include <stdio.h>
 
-#include "ennov_platform.h"
+#include "ennov_defs.h"
 
 struct vec2
 {
@@ -88,24 +89,6 @@ operator-(vec2& Vector)
   Negative.y = -(Vector.y);
 
   return Negative;
-}
-
-inline vec2
-operator-(vec2& Vec1, vec2& Vec2)
-{
-  vec2 Final;
-  Final.x = Vec1.x - Vec2.x;
-  Final.y = Vec2.y - Vec2.y;
-  return Final;
-}
-
-inline vec2
-operator+(vec2& Vec1, vec2& Vec2)
-{
-  vec2 Final;
-  Final.x = Vec1.x + Vec2.x;
-  Final.y = Vec2.y + Vec2.y;
-  return Final;
 }
 
 struct rect

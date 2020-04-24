@@ -166,7 +166,7 @@ void
 FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color)
 {
     f32 Width = 0.46, Edge = 0.19;
-    f32 Scale = normf(0, FontRenderData.CurrentFont.Size, Size);
+    f32 Scale = normf(Size, 0, FontRenderData.CurrentFont.Size);
     if(Scale >= 0.3f)
     {
         Width = 0.5;
@@ -246,7 +246,7 @@ FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, 
 {
     // TODO(rajat): Remove reference and use a pointer instead
     fontinfo& CurrentFont = FontRenderData.CurrentFont;
-    f32 Scale = normf(0, FontRenderData.CurrentFont.Size, Size);
+    f32 Scale = normf(Size, 0, FontRenderData.CurrentFont.Size);
 
     f32 x1 = x;
     f32 y1 = y;
