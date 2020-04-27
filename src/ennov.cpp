@@ -69,6 +69,8 @@ struct breakout_game_state
     b32 IsPaused;
 };
 
+static ui_render_ctx UI_Ctx;
+
 struct breakout_save_data
 {
     u32 NumLives;
@@ -148,7 +150,11 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
                                                                    &State->AssestStorage);
         game_file* FontFragmentShader = (game_file*)PlatformLoadFile("shaders/font.frag", PushStruct_,
                                                                      &State->AssestStorage);
+        game_file* UI_VertexShader = (game_file*)PlatformLoadFile("shaders/ui.vert", PushStruct_, &State->AssestStorage);
+        game_file* UI_FragmentShader = (game_file*)PlatformLoadFile("shaders/ui.frag", PushStruct_, &State->AssestStorage);
+
         CreateRenderContext((const char*)VertexShaderFile->Data, (const char*)FragmentShaderFile->Data);
+        UI_CreateContext(&UI_Ctx, (const char*)UI_VertexShader->Data, (const char*)UI_FragmentShader->Data);
         GameState = State;
         LoadFont("assets/fonts/default.fnt");
         CreateFontRenderObjects((const char*)FontVertexShader->Data, (const char*)FontFragmentShader->Data);
@@ -529,7 +535,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             yofffac = 0;
             Color6 = HilightColor;
         }
-        FillQuad(bx + i * bw + (Spacing) * i,
+        UI_FillQuad(&UI_Ctx, bx + i * bw + (Spacing) * i,
                  by + yofffac,
                  bw, bh, Color6);
     }
@@ -573,6 +579,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
+    UI_FillQuad(&UI_Ctx, 0, 0, 400, 400, 0xFFFAAFFF);
 
     // UIInit();
 

@@ -482,7 +482,7 @@ main(int argc, char* argv[])
     glXSwapIntervalMESA = (PFNGLXSWAPINTERVALMESAPROC)glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalMESA");
 
     // TODO(rajat): Do proper Query before using this
-    glXSwapIntervalMESA(1);
+    glXSwapIntervalMESA(0);
 
     // TODO(rajat): Not optimal way to doing this, will be replaced soon
     u32 ConfigBits = 0;
@@ -510,8 +510,8 @@ main(int argc, char* argv[])
 
         // NOTE(rajat): Delta value will be in deciseconds not seconds
         GameState.dt = (CurrentTimeInMs - LastTimeInMs) / 1.0e2f;
-        // printf("%f\n", GameState.dt * 1.0e2f);
-        // printf("%f\n", 1000/(GameState.dt * 1.0e2f));
+        printf("%f\n", GameState.dt * 1.0e2f);
+        printf("%f\n", 1000/(GameState.dt * 1.0e2f));
 
         LastTimeInMs = CurrentTimeInMs;
 

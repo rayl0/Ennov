@@ -67,6 +67,12 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, texture *Texture, f32 s0, f32 t0,
 /* extern void */
 /* FillTexQuadClippedReservedPointed(f32 x, f32 y, f32 x0, f32 y0, u32 Color, texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1); */
 
+/* extern void */
+/* PushDrawCommmand(); */
+
+/* extern void */
+/* PopDrawCommand(); */
+
 extern void
 RenderCommit();
 
