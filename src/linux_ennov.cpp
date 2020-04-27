@@ -510,8 +510,8 @@ main(int argc, char* argv[])
 
         // NOTE(rajat): Delta value will be in deciseconds not seconds
         GameState.dt = (CurrentTimeInMs - LastTimeInMs) / 1.0e2f;
-        printf("%f\n", GameState.dt * 1.0e2f);
-        printf("%f\n", 1000/(GameState.dt * 1.0e2f));
+        // printf("%f\n", GameState.dt * 1.0e2f);
+        // printf("%f\n", 1000/(GameState.dt * 1.0e2f));
 
         LastTimeInMs = CurrentTimeInMs;
 

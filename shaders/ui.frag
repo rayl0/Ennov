@@ -16,32 +16,26 @@ uniform float radius;
 
 uniform sampler2D Texture;
 
-const float smoothness = 0.7;
+const float cornerSmoothFactor = 0.7;
+
+float calcRoundedCorners() {
+	if (radius <= 0.0) {
+		return 1.0;
+	}
+	vec2 pixelPos = TextureCoords * vec2(uiWidth, uiHeight);
+	vec2 minCorner = vec2(radius, radius);
+	vec2 maxCorner = vec2(uiWidth - radius, uiHeight - radius);
+
+	vec2 cornerPoint = clamp(pixelPos, minCorner, maxCorner);
+	float lowerBound = pow(radius - cornerSmoothFactor, 2);
+	float upperBound = pow(radius + cornerSmoothFactor, 2);
+	return smoothstep(upperBound, lowerBound, pow(distance(pixelPos, cornerPoint), 2));
+}
 
 void main(void) 
 {
-  float alphavalue = Color.a;
+  float alphavalue = Color.a * calcRoundedCorners();
 
-  if(radius > 0.0)
-  {
-     vec2 pixelpos = TextureCoords * vec2(uiWidth, uiHeight);
-     float xMax = uiWidth - radius;
-     float yMax = uiHeight - radius;
-
-     if(pixelpos.x < radius && pixelpos.y < radius) {
-        alphavalue *= 1.0 - smoothstep(radius - smoothness, radius + smoothness,
-                              length(pixelpos - vec2(radius, radius)));
-     } else if(pixelpos.x < radius && pixelpos.y > yMax) {
-        alphavalue *= 1.0 - smoothstep(radius - smoothness, radius + smoothness,
-                                    length(pixelpos - vec2(radius, yMax)));
-     } else if(pixelpos.x > xMax && pixelpos.y > yMax) {
-        alphavalue *= 1.0 - smoothstep(radius - smoothness, radius + smoothness,
-                                    length(pixelpos - vec2(xMax, yMax)));
-     } else if(pixelpos.x > xMax && pixelpos.y < radius) {
-       alphavalue *= 1.0 - smoothstep(radius - smoothness, radius + smoothness,
-                                    length(pixelpos - vec2(xMax, radius)));
-     }
-  }
   OutColor = vec4(1.0f);
   OutColor.rgb = mix(OutColor.rgb, Color.rgb * OutColor.rgb, 1.0f); 
   OutColor.a *= alphavalue;
