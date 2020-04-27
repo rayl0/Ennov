@@ -70,6 +70,7 @@ struct breakout_game_state
 };
 
 static ui_render_ctx UI_Ctx;
+static u32 rctx;
 
 struct breakout_save_data
 {
@@ -153,8 +154,11 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         game_file* UI_VertexShader = (game_file*)PlatformLoadFile("shaders/ui.vert", PushStruct_, &State->AssestStorage);
         game_file* UI_FragmentShader = (game_file*)PlatformLoadFile("shaders/ui.frag", PushStruct_, &State->AssestStorage);
 
-        CreateRenderContext((const char*)VertexShaderFile->Data, (const char*)FragmentShaderFile->Data);
+        CreateRenderContext(&rctx, (const char*)VertexShaderFile->Data, (const char*)FragmentShaderFile->Data);
+        BindRenderContext(rctx);
+
         UI_CreateContext(&UI_Ctx, (const char*)UI_VertexShader->Data, (const char*)UI_FragmentShader->Data);
+
         GameState = State;
         LoadFont("assets/fonts/default.fnt");
         CreateFontRenderObjects((const char*)FontVertexShader->Data, (const char*)FontFragmentShader->Data);
@@ -194,6 +198,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             Ball->Pos.x = clampf(Ball->Pos.x, 0, 800 - Ball->Dimensions.x);
             Ball->Pos.y = clampf(Ball->Pos.y, 0, 800 - Ball->Dimensions.y);
         }
+
         if(Ball->Pos.x >= 780.0f) Direction->x = -(Direction->x);
         if(Ball->Pos.y <= 0.0f) Direction->y = -(Direction->y);
         if(Ball->Pos.x <= 0.0f) Direction->x = -(Direction->x);
@@ -398,8 +403,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         winy = clampf(Input->Cursor.Y, 0, 600 - winh);
     }
 
-    FillQuad(winx, winy, winw, winh, 0x141414FF);
-    FillQuad(winx + winw / 2 - 20 / 2, winy, 20, 20, 0x007A7A7F);
+    UI_FillQuad(&UI_Ctx, winx, winy, winw, winh, 0x141414FF);
+    UI_FillQuad(&UI_Ctx, winx + winw / 2 - 20 / 2, winy, 20, 20, 0x007A7A7F);
 
     if(RectangleContainsPoint({200, 200, 100, 50}, {Input->Cursor.X, Input->Cursor.Y}) && Input->Cursor.Hit)
         WasHit = WasHit ^ 1;
@@ -412,14 +417,14 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     static u32 HilightColor = 0x007A7A3F;
     static u32 Color3 = BasicColor;
 
-    FillQuad(xslid, yslid, wslid, hslid, Color3);
+    UI_FillQuad(&UI_Ctx, xslid, yslid, wslid, hslid, Color3);
 
     f32 wper = 0.85 * wslid;
     f32 hper = lerpf(0.25, 0, hslid);
     f32 xper = xslid + wslid / 2 - wper / 2;
     f32 yper = yslid + hslid / 2 - hper / 2;
 
-    FillQuad(xper, yper, wper, hper, 0x007A7A5F);
+    UI_FillQuad(&UI_Ctx, xper, yper, wper, hper, 0x007A7A5F);
 
     f32 wtogg = lerpf(0.05, 0, wper);
     f32 htogg = lerpf(0.7, 0, hslid);
@@ -466,8 +471,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         Toggled = false;
     }
 
-    FillQuad(xtogg, ytogg, wtogg, htogg, Color5);
-    FillQuad(xper, yper, (xtogg - xper), hper, 0x009F9FFF);
+    UI_FillQuad(&UI_Ctx, xtogg, ytogg, wtogg, htogg, Color5);
+    UI_FillQuad(&UI_Ctx, xper, yper, (xtogg - xper), hper, 0x009F9FFF);
 
     f32 FontSize;
 
@@ -476,7 +481,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     FontSize = mapf(xtogg - xper + wtogg, wtogg, wper, 14, 72);
     sprintf(Buffer, "%f", FontSize);
 
-    FillQuad(xslid + wslid + 10, yslid, 30, hslid, 0x0000004F);
+    UI_FillQuad(&UI_Ctx, xslid + wslid + 10, yslid, 30, hslid, 0x0000004F);
 
     f32 Color4 = HilightColor + 20;
     f32 butwhw = winw * 0.85, butwhh = 20;
@@ -490,8 +495,8 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     f32 ibutw = butwhw * (1 - 0.075);
     f32 ibutx = butwhx + butw + 10;
 
-    FillQuad(butx, butwhy, butw, butwhh, Color4);
-    FillQuad(ibutx, butwhy, ibutw, butwhh, Color4);
+    UI_FillQuad(&UI_Ctx, butx, butwhy, butw, butwhh, Color4);
+    UI_FillQuad(&UI_Ctx, ibutx, butwhy, ibutw, butwhh, Color4);
 
     if(RectangleContainsPoint({butx, butwhy, butw, butwhh}, Input->Cursor.at))
     {
@@ -510,7 +515,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     }
 
     if(Toggle)
-        FillQuad(butx + (butw / 2) - (0.50 * butw) / 2,
+        UI_FillQuad(&UI_Ctx, butx + (butw / 2) - (0.50 * butw) / 2,
                  butwhy + (butwhh / 2) - (0.50 * butwhh) / 2,
                  0.50 * butw, 0.50 * butwhh, 0x00FFFFFF);
 
@@ -540,8 +545,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
                  bw, bh, Color6);
     }
 
-
-    RenderCommit();
+    // RenderCommit();
 
     FillText(Buffer, xslid + wslid + 10 + 2, yslid, 15, 0xFFFFFFFF);
 
@@ -580,7 +584,13 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     }
 
     UI_FillQuad(&UI_Ctx, 0, 0, 400, 400, 0xFFFAAFFF);
+    UI_FillQuad(&UI_Ctx, 500, 500, 100, 100, 0x00FFFFFF);
+
+    RenderCommit();
+
+    FlushRenderCommands(rctx);
     UI_FlushCommands(&UI_Ctx);
+    FontFlushRenderCommands();
 
     // UIInit();
 

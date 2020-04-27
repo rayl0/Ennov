@@ -26,7 +26,7 @@ struct ui_render_ctx
 
     u32 Shader;
 
-    // TODO(rajat): It's not a good idea to have a variable length command queue
+    // TODO(rajat): It's not a good idea to have a const length command queue
     ui_draw_cmd CommandQueue[1000];
     u32 NumCommands;
 };

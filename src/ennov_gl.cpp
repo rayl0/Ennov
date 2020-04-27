@@ -25,13 +25,21 @@
 
 // NOTE(rajat): Be careful with names in shaders make sure to have same names
 
-render_context rctx;
-b32 IsCtxInitialized = false;
+// NOTE(rajat): Trying to be less generic here
+static render_context RenderContexts[10] = {};
+static u32 ContextCount = {};
+static b32 IsCtxInitialized = false;
+
+static s32 CurrentId = -1;
 
 void
-CreateRenderContext(const char* VertexShader, const char* FragmentShader)
+CreateRenderContext(u32* Id, const char* VertexShader, const char* FragmentShader)
 {
-    if(IsCtxInitialized) return;
+    // TODO(rajat): Update it after updating NumContexts
+    Assert(ContextCount <= 9);
+
+    *Id = ContextCount++;
+    render_context& rctx = RenderContexts[*Id];
 
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &rctx.NumTextureSlots);
 
@@ -80,6 +88,14 @@ CreateRenderContext(const char* VertexShader, const char* FragmentShader)
     IsCtxInitialized = true;
 }
 
+void
+BindRenderContext(u32 Id)
+{
+    Assert(Id <= 10);
+
+    CurrentId = Id;
+}
+
 static glm::vec4 qd[6] = {
     {0.0f, 1.0f, 0.0f, 1.0f},
     {1.0f, 0.0f, 0.0f, 1.0f},
@@ -93,7 +109,9 @@ static glm::vec4 qd[6] = {
 void
 FillQuad(f32 x, f32 y, f32 w, f32 h, u32 Color)
 {
-    Assert(IsCtxInitialized == true);
+    Assert(CurrentId == -1);
+
+    render_context& rctx = RenderContexts[CurrentId];
 
     if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
         RenderCommit();
@@ -134,7 +152,9 @@ FillQuad(f32 x, f32 y, f32 w, f32 h, u32 Color)
 void
 FillTexQuad(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture)
 {
-    Assert(IsCtxInitialized == true);
+    Assert(CurrentId == -1);
+
+    render_context& rctx = RenderContexts[CurrentId];
 
     if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
         RenderCommit();
@@ -193,6 +213,9 @@ void
 FillTexQuad(f32 x, f32 y, f32 w, f32 h, texture *Texture)
 {
     Assert(IsCtxInitialized == true);
+    Assert(CurrentId == -1);
+
+    render_context& rctx = RenderContexts[CurrentId];
 
     if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
         RenderCommit();
@@ -249,6 +272,10 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, u32 Color,
                    texture* Texture, f32 s0, f32 t0, f32 s1, f32 t1)
 {
     Assert(IsCtxInitialized == true);
+
+    Assert(CurrentId == -1);
+
+    render_context& rctx = RenderContexts[CurrentId];
 
     if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
         RenderCommit();
@@ -308,6 +335,10 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h,
                    texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1)
 {
      Assert(IsCtxInitialized == true);
+
+     Assert(CurrentId == -1);
+
+     render_context& rctx = RenderContexts[CurrentId];
 
     if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
         RenderCommit();
@@ -375,29 +406,56 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, texture *Texture, vec4
                        (r.x + r.z)/w, (r.y + r.w)/h);
 }
 
-
 void
 RenderCommit()
 {
-    glBindVertexArray(rctx.VertexArray);
-    glBindBuffer(GL_ARRAY_BUFFER, rctx.VertexBuffer);
+    render_context& rctx = RenderContexts[CurrentId];
 
-    glBufferSubData(GL_ARRAY_BUFFER, 0,
-                    sizeof(float) * rctx.VertexBufferCurrentPos,
-                    rctx.VertexBufferData);
+    render_cmd* cmd = &rctx.RenderCommands[rctx.NumCommands++];
 
-    glUseProgram(rctx.TexQuadShader);
+    for(int i = 0; i < rctx.VertexBufferCurrentPos; ++i)
+    {
+        cmd->VertexBufferData[i] = rctx.VertexBufferData[i];
+    }
 
     for(int i = 0; i < rctx.NumBindTextureSlots; ++i)
     {
-        glActiveTexture(GL_TEXTURE0 + i);
-        glBindTexture(GL_TEXTURE_2D, rctx.TextureMap[i]);
+        cmd->TextureMap[i] = rctx.TextureMap[i];
     }
 
-    glDrawArrays(GL_TRIANGLES, 0, rctx.VertexBufferCurrentPos / DATA_PER_VERTEX_TEXQUAD);
+    cmd->NumVertices = rctx.VertexBufferCurrentPos / DATA_PER_VERTEX_TEXQUAD;
+    cmd->NumBindTextureSlots = rctx.NumBindTextureSlots;
 
     rctx.VertexBufferCurrentPos = 0;
     rctx.NumBindTextureSlots = 0;
+}
+
+void FlushRenderCommands(u32 Id)
+{
+    render_context& rctx = RenderContexts[Id];
+
+    glBindVertexArray(rctx.VertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, rctx.VertexBuffer);
+    glUseProgram(rctx.TexQuadShader);
+
+    for(int i = 0; i < rctx.NumCommands; ++i)
+    {
+        render_cmd* cmd = &rctx.RenderCommands[i];
+
+        glBufferSubData(GL_ARRAY_BUFFER, 0,
+                        sizeof(float) * cmd->NumVertices * DATA_PER_VERTEX_TEXQUAD,
+                        cmd->VertexBufferData);
+
+        for(int i = 0; i < cmd->NumBindTextureSlots; ++i)
+        {
+            glActiveTexture(GL_TEXTURE0 + i);
+            glBindTexture(GL_TEXTURE_2D, cmd->TextureMap[i]);
+        }
+
+        glDrawArrays(GL_TRIANGLES, 0, cmd->NumVertices);
+    }
+
+    rctx.NumCommands = 0;
 }
 
 /* Extended API */

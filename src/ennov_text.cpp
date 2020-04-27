@@ -1,3 +1,8 @@
+// ---- Text TODO ----
+// Drop shadow
+// Auto mapped width and edge values
+// Use Index Buffers
+
 #include "ennov.h"
 #include "ennov_gl.h"
 #include "ennov_utils.h"
@@ -37,6 +42,19 @@ PushStruct_(game_areana* Areana, memory_index Size)
 #define MAX_FONTQUADS 200
 #define FONT_VERTEXBUFFER_SIZE MAX_FONTQUADS * 4 * 6
 
+struct font_render_cmd
+{
+    f32 Color[4];
+    f32 BorderWidth;
+    f32 BorderEdge;
+    f32 Width;
+    f32 Edge;
+    f32 BorderColor[3];
+
+    f32 VertexBufferData[FONT_VERTEXBUFFER_SIZE];
+    u32 NumVertices;
+};
+
 struct font_render_data
 {
     fontinfo CurrentFont;
@@ -50,6 +68,9 @@ struct font_render_data
     u32 VertexBufferCurrentPos;
 
     u32 Shader;
+
+    font_render_cmd RenderCommands[100];
+    u32 NumCommands;
 };
 
 global_variable u32 ViewProjLoc;
@@ -80,9 +101,8 @@ CreateFontRenderObjects(const char* VertexShader, const char* FragmentShader)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    FontRenderData.ViewProj = glm::ortho(0.0f, (f32)GameState->ContextAttribs.Width,
-                                         (f32)GameState->ContextAttribs.Height,
-                                         0.0f, -1.0f, 1.0f);
+    FontRenderData.ViewProj = glm::ortho(0.0f, 800.0f,
+                                         600.0f, 0.0f, -1.0f, 1.0f);
 
     ViewProjLoc = glGetUniformLocation(FontRenderData.Shader, "ViewProj");
     glUniformMatrix4fv(ViewProjLoc, 1, GL_FALSE, glm::value_ptr(FontRenderData.ViewProj));
@@ -181,39 +201,82 @@ void
 FontRenderCommit(u32 FontColor, f32 Width, f32 Edge,
                  u32 BorderColor, f32 BorderWidth, f32 BorderEdge)
 {
+    Assert(FontRenderData.NumCommands <= 100);
+
+    font_render_cmd* cmd = &FontRenderData.RenderCommands[FontRenderData.NumCommands++];
+
+    for(s32 i = 0; i < FontRenderData.VertexBufferCurrentPos; ++i)
+    {
+        cmd->VertexBufferData[i] = FontRenderData.VertexBufferData[i];
+    }
+
+    cmd->BorderWidth = BorderWidth;
+    cmd->BorderEdge = BorderEdge;
+    cmd->Width = Width;
+    cmd->Edge = Edge;
+
+    u8 r, g, b, a;
+    DecodeRGBA(FontColor, &r, &g, &b, &a);
+
+    cmd->Color[0] = r / 255.0f;
+    cmd->Color[1] = g / 255.0f;
+    cmd->Color[2] = b / 255.0f;
+    cmd->Color[a] = a / 255.0f;
+
+    DecodeRGBA(BorderColor, &r, &g, &b, &a);
+
+    cmd->BorderColor[0] = r / 255.0f;
+    cmd->BorderColor[1] = g / 255.0f;
+    cmd->BorderColor[2] = b / 255.0f;
+
+    cmd->NumVertices = FontRenderData.VertexBufferCurrentPos / 4;
+
+    FontRenderData.VertexBufferCurrentPos = 0;
+}
+
+void
+FontFlushRenderCommands()
+{
+    // if(FontRenderData.NumCommands == 0)
+        // return;
+
     glBindVertexArray(FontRenderData.VertexArray);
     glBindBuffer(GL_ARRAY_BUFFER, FontRenderData.VertexBuffer);
-
-    glBufferSubData(GL_ARRAY_BUFFER, 0,
-                    sizeof(f32) * FontRenderData.VertexBufferCurrentPos,
-                    FontRenderData.VertexBufferData);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, FontRenderData.Texture.Id);
 
     glUseProgram(FontRenderData.Shader);
 
-    glUniform1f(BorderWidthLoc, BorderWidth);
-    glUniform1f(BorderEdgeLoc, BorderEdge);
-    glUniform1f(WidthLoc, Width);
-    glUniform1f(EdgeLoc, Edge);
+    WidthLoc = glGetUniformLocation(FontRenderData.Shader, "Width");
+    EdgeLoc = glGetUniformLocation(FontRenderData.Shader, "Edge");
+    BorderWidthLoc = glGetUniformLocation(FontRenderData.Shader, "BorderWidth");
+    BorderEdgeLoc = glGetUniformLocation(FontRenderData.Shader, "BorderEdge");
+    BorderColorLoc = glGetUniformLocation(FontRenderData.Shader, "BorderColor");
+    FontColorLoc = glGetUniformLocation(FontRenderData.Shader, "FontColor");
 
-    u8 r, g, b, a;
-    DecodeRGBA(FontColor, &r, &g, &b, &a);
-    glUniform4f(FontColorLoc, r / 0xFF, g / 0xFF, b / 0xFF, a / 0xFF);
+    for(int i = 0; i < FontRenderData.NumCommands; ++i)
+    {
+        font_render_cmd* cmd = &FontRenderData.RenderCommands[i];
 
-    DecodeRGBA(BorderColor, &r, &g, &b, &a);
-    glUniform3f(BorderColorLoc, r / 0xFF, g / 0xFF, b / 0xFF);
+        glUniform1f(BorderWidthLoc, cmd->BorderWidth);
+        glUniform1f(BorderEdgeLoc, cmd->BorderEdge);
+        glUniform1f(WidthLoc, cmd->Width);
+        glUniform1f(EdgeLoc, cmd->Edge);
 
-    FontRenderData.ViewProj = glm::ortho(0.0f, (f32)GameState->ContextAttribs.Width,
-                                         (f32)GameState->ContextAttribs.Height,
-                                         0.0f, -1.0f, 1.0f);
+        glUniform4f(FontColorLoc, cmd->Color[0], cmd->Color[1],
+                    cmd->Color[2], cmd->Color[3]);
 
-    glUniformMatrix4fv(ViewProjLoc, 1, GL_FALSE, glm::value_ptr(FontRenderData.ViewProj));
+        glUniform3f(BorderColorLoc, cmd->BorderColor[0], cmd->BorderColor[1], cmd->BorderColor[2]);
 
-    glDrawArrays(GL_TRIANGLES, 0, FontRenderData.VertexBufferCurrentPos / 4);
+        glBufferSubData(GL_ARRAY_BUFFER, 0,
+                        sizeof(f32) * cmd->NumVertices * 4,
+                        cmd->VertexBufferData);
 
-    FontRenderData.VertexBufferCurrentPos = 0;
+        glDrawArrays(GL_TRIANGLES, 0, cmd->NumVertices);
+    }
+
+    FontRenderData.NumCommands = 0;
 }
 
 void
@@ -232,12 +295,6 @@ void
 FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, u32 BorderColor)
 {
     FillText(s, x, y, Size, Color, Width, Edge, BorderColor, Width + 0.2, Edge + 0.1);
-}
-
-internal_ f32
-GetScale(f32 FontSize, f32 Size)
-{
-    return Size/FontSize;
 }
 
 void

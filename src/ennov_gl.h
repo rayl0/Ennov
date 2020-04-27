@@ -1,5 +1,9 @@
 #pragma once
 
+// ----- TODO --------
+// Add viewport and projection matrix updating with window size
+// Add a setviewproj function.
+
 #include "glm/glm.hpp"
 
 struct texture
@@ -13,10 +17,20 @@ struct texture
 #define DATA_PER_VERTEX_TEXQUAD 9
 #define VERTEX_BUFFER_SIZE (MAX_TEXQUADS * 6 * DATA_PER_VERTEX_TEXQUAD)
 
+struct render_cmd
+{
+    u32 TextureMap[32];
+    u32 NumBindTextureSlots;
+
+    f32 VertexBufferData[VERTEX_BUFFER_SIZE];
+    u32 NumVertices;
+};
+
 struct render_context
 {
     u32 VertexArray;
     u32 VertexBuffer;
+    u32 TexQuadShader;
 
     glm::mat4 ViewProj;
 
@@ -27,11 +41,20 @@ struct render_context
     s32 NumTextureSlots;
     u32 NumBindTextureSlots;
 
-    u32 TexQuadShader;
+    render_cmd RenderCommands[50]; // TODO(rajat): It's not a good idea to have a constant length command queue
+    u32 NumCommands;
 };
 
 extern void
-CreateRenderContext(const char* VertexShader, const char* FragmentShader);
+CreateRenderContext(u32* Id, const char* VertexShader, const char* FragmentShader);
+
+// TODO(rajat): Not optimal for multithreading
+extern void
+BindRenderContext(u32 Id);
+
+// TODO(rajat): Not optimal for multithreading
+extern void
+FlushRenderCommands(u32 Id);
 
 /* extern void */
 /* PositionCameraAt(); */
