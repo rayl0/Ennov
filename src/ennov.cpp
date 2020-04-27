@@ -580,6 +580,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     }
 
     UI_FillQuad(&UI_Ctx, 0, 0, 400, 400, 0xFFFAAFFF);
+    UI_FlushCommands(&UI_Ctx);
 
     // UIInit();
 

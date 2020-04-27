@@ -14,7 +14,11 @@ uniform float uiWidth;
 uniform float uiHeight;
 uniform float radius;
 
-uniform sampler2D Texture;
+uniform float useTexture;
+uniform float useColor;
+// uniform float useBorder;
+
+uniform sampler2D UI_Texture;
 
 const float cornerSmoothFactor = 0.7;
 
@@ -37,6 +41,12 @@ void main(void)
   float alphavalue = Color.a * calcRoundedCorners();
 
   OutColor = vec4(1.0f);
-  OutColor.rgb = mix(OutColor.rgb, Color.rgb * OutColor.rgb, 1.0f); 
+
+  if(useTexture > 0.5f)
+  {
+     OutColor = texture(UI_Texture, TextureCoords);
+  }
+
+  OutColor.rgb = mix(OutColor.rgb, Color.rgb * OutColor.rgb, useColor); 
   OutColor.a *= alphavalue;
 }

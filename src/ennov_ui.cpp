@@ -45,8 +45,22 @@ UI_CreateContext(ui_render_ctx* ctx, const char* VertexShader, const char* Fragm
     ctx->Shader = CreateShaderProgram(VertexShader, FragmentShader);
     glUseProgram(ctx->Shader);
 
+    glm::mat4 ViewProj = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
+
+    u32 ViewProjLocation = glGetUniformLocation(ctx->Shader, "ViewProj");
+    glUniformMatrix4fv(ViewProjLocation, 1, GL_FALSE, glm::value_ptr(ViewProj));
+
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+}
+
+inline static void
+PushCommand(ui_render_ctx* ctx, ui_draw_cmd* cmd)
+{
+    Assert(NumCommands != 1000);
+
+    ctx->CommandQueue[ctx->NumCommands] = *cmd;
+    ctx->NumCommands++;
 }
 
 extern void
@@ -54,60 +68,32 @@ UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color)
 {
     Assert(ctx != NULL);
 
+    ui_draw_cmd cmd;
+
     glm::mat4 Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(x, y, 0));
     Model = glm::scale(Model, glm::vec3(w, h, 1));
 
-    glBindVertexArray(ctx->VertexArray);
-    glUseProgram(ctx->Shader);
-
-    u32 ModelLoc, ColorLoc, ViewProjLocation;
-    ModelLoc = glGetUniformLocation(ctx->Shader, "Model");
-    glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(Model));
-
-    glm::mat4 ViewProj = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
-
-    ViewProjLocation = glGetUniformLocation(ctx->Shader, "ViewProj");
-    glUniformMatrix4fv(ViewProjLocation, 1, GL_FALSE, glm::value_ptr(ViewProj));
+    cmd.Model = Model;
 
     u8 r, g, b, a;
     DecodeRGBA(Color, &r, &g, &b, &a);
 
-    ColorLoc = glGetUniformLocation(ctx->Shader, "Color");
-    glUniform4f(ColorLoc, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
+    cmd.r = r;
+    cmd.g = g;
+    cmd.b = b;
+    cmd.a = a;
 
-    // u32 tl, bl, br, tr;
-    // tl = glGetUniformLocation(ctx->Shader, "TopLeft");
-    // bl = glGetUniformLocation(ctx->Shader, "BottomLeft");
-    // br = glGetUniformLocation(ctx->Shader, "BottomRight");
-    // tr = glGetUniformLocation(ctx->Shader, "TopRight");
+    cmd.UI_Width = w;
+    cmd.UI_Height = h;
 
-    // glUniform2f(tl, x, y);
-    // glUniform2f(bl, x, y + h);
-    // glUniform2f(br, x + w, y + h);
-    // glUniform2f(tr, x + w, y);
+    // TODO(rajat): Move this to render command
+    // glUniform1f(RadiusLoc, 20);
 
-    // u32 TexturedLoc;
-    // TexturedLoc = glGetUniformLocation(ctx->Shader, "TexturedLoc");
-    // glUniform1f(TexturedLoc, 0.0);
+    cmd.UseColor = 1;
+    cmd.UseTexture = 0;
 
-    // u32 arl, rrl;
-    // arl = glGetUniformLocation(ctx->Shader, "aspectRatio");
-    // rrl = glGetUniformLocation(ctx->Shader, "radiusRatio");
-
-    u32 WidthLoc, HeightLoc, RadiusLoc;
-    WidthLoc = glGetUniformLocation(ctx->Shader, "uiWidth");
-    HeightLoc = glGetUniformLocation(ctx->Shader, "uiHeight");
-    RadiusLoc = glGetUniformLocation(ctx->Shader, "radius");
-
-    glUniform1f(WidthLoc, w);
-    glUniform1f(HeightLoc, h);
-    glUniform1f(RadiusLoc, 40);
-
-    glBindBuffer(GL_ARRAY_BUFFER, ctx->VertexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->IndexBuffer);
-
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+    PushCommand(ctx, &cmd);
 }
 
 void
@@ -122,14 +108,9 @@ UI_FillTexQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color, textur
     glBindVertexArray(ctx->VertexArray);
     glUseProgram(ctx->Shader);
 
-    u32 ModelLoc, ColorLoc, ViewProjLocation;
+    u32 ModelLoc, ColorLoc;
     ModelLoc = glGetUniformLocation(ctx->Shader, "Model");
     glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(Model));
-
-    glm::mat4 ViewProj = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
-
-    ViewProjLocation = glGetUniformLocation(ctx->Shader, "ViewProj");
-    glUniformMatrix4fv(ViewProjLocation, 1, GL_FALSE, glm::value_ptr(ViewProj));
 
     u8 r, g, b, a;
     DecodeRGBA(Color, &r, &g, &b, &a);
@@ -140,10 +121,87 @@ UI_FillTexQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color, textur
     glBindBuffer(GL_ARRAY_BUFFER, ctx->VertexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->IndexBuffer);
 
+    u32 WidthLoc, HeightLoc, RadiusLoc;
+    WidthLoc = glGetUniformLocation(ctx->Shader, "uiWidth");
+    HeightLoc = glGetUniformLocation(ctx->Shader, "uiHeight");
+    RadiusLoc = glGetUniformLocation(ctx->Shader, "radius");
+
+    glUniform1f(WidthLoc, w);
+    glUniform1f(HeightLoc, h);
+    glUniform1f(RadiusLoc, 20);
+
+    u32 UseColorLoc, UseTextureLoc;
+    UseColorLoc = glGetUniformLocation(ctx->Shader, "useColor");
+    UseTextureLoc = glGetUniformLocation(ctx->Shader, "useTexture");
+
+    glUniform1f(UseColorLoc, 0);
+    glUniform1f(UseTextureLoc, 1);
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, Texture->Id);
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+}
+
+void
+UI_UpdateViewProj(ui_render_ctx* ctx, f32 ViewportWidth, f32 ViewportHeight)
+{
+    glm::mat4 ViewProj = glm::ortho(0.0f, ViewportWidth, ViewportHeight, 0.0f, -1.0f, 1.0f);
+
+    glUseProgram(ctx->Shader);
+
+    u32 ViewProjLocation = glGetUniformLocation(ctx->Shader, "ViewProj");
+    glUniformMatrix4fv(ViewProjLocation, 1, GL_FALSE, glm::value_ptr(ViewProj));
+
+    glUseProgram(0);
+}
+
+void
+UI_FlushCommands(ui_render_ctx* ctx)
+{
+    Assert(ctx != NULL);
+
+    ui_draw_cmd* cmd;
+
+    glBindVertexArray(ctx->VertexArray);
+    glUseProgram(ctx->Shader);
+    glBindBuffer(GL_ARRAY_BUFFER, ctx->VertexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->IndexBuffer);
+
+    u32 ModelLoc, ColorLoc;
+    ModelLoc = glGetUniformLocation(ctx->Shader, "Model");
+    ColorLoc = glGetUniformLocation(ctx->Shader, "Color");
+
+    u32 WidthLoc, HeightLoc, RadiusLoc;
+    WidthLoc = glGetUniformLocation(ctx->Shader, "uiWidth");
+    HeightLoc = glGetUniformLocation(ctx->Shader, "uiHeight");
+    RadiusLoc = glGetUniformLocation(ctx->Shader, "radius");
+
+    u32 UseColorLoc, UseTextureLoc;
+    UseColorLoc = glGetUniformLocation(ctx->Shader, "useColor");
+    UseTextureLoc = glGetUniformLocation(ctx->Shader, "useTexture");
+
+    glUniform1f(RadiusLoc, 20);
+
+    for(int i = 0; i < ctx->NumCommands; ++i)
+    {
+        cmd = &ctx->CommandQueue[i];
+
+        glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(cmd->Model));
+
+        glUniform4f(ColorLoc, cmd->r / 255.0, cmd->g / 255.0,
+                    cmd->b / 255.0, cmd->a / 255.0);
+
+        glUniform1f(WidthLoc, cmd->UI_Width);
+        glUniform1f(HeightLoc, cmd->UI_Height);
+
+        glUniform1f(UseColorLoc, cmd->UseColor);
+        glUniform1f(UseTextureLoc, cmd->UseTexture);
+
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+    }
+
+    ctx->NumCommands = 0;
 }
 
 // It will be replaced in the shipping code with dynamic vectors
