@@ -1,6 +1,5 @@
 // TODO(Rajat):
 /*
-  --Text Rendering
   --GJK Collision Detection (It is not necessary to use this)
   --Cleaning Up Platform layer
   --Input System Cleaning
@@ -281,12 +280,10 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
             {
                 X11ProcessButton(&NewInput->Button.Select, IsDown);
             }
-            #ifdef ENNOV_DEBUG
             if (Key == XK_Tab) {
                 State->Running = false;
                 X11ProcessButton(&NewInput->Button.Terminate, IsDown);
             }
-            #endif //ENNOV_DEBUG
         } break;
             break;
         case KeyRelease:
@@ -482,7 +479,7 @@ main(int argc, char* argv[])
     glXSwapIntervalMESA = (PFNGLXSWAPINTERVALMESAPROC)glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalMESA");
 
     // TODO(rajat): Do proper Query before using this
-    glXSwapIntervalMESA(0);
+    glXSwapIntervalMESA(1);
 
     // TODO(rajat): Not optimal way to doing this, will be replaced soon
     u32 ConfigBits = 0;

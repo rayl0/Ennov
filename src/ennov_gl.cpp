@@ -109,7 +109,7 @@ static glm::vec4 qd[6] = {
 void
 FillQuad(f32 x, f32 y, f32 w, f32 h, u32 Color)
 {
-    Assert(CurrentId == -1);
+    Assert(CurrentId != -1);
 
     render_context& rctx = RenderContexts[CurrentId];
 
@@ -152,7 +152,7 @@ FillQuad(f32 x, f32 y, f32 w, f32 h, u32 Color)
 void
 FillTexQuad(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture)
 {
-    Assert(CurrentId == -1);
+    Assert(CurrentId != -1);
 
     render_context& rctx = RenderContexts[CurrentId];
 
@@ -212,8 +212,7 @@ FillTexQuad(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture)
 void
 FillTexQuad(f32 x, f32 y, f32 w, f32 h, texture *Texture)
 {
-    Assert(IsCtxInitialized == true);
-    Assert(CurrentId == -1);
+    Assert(CurrentId != -1);
 
     render_context& rctx = RenderContexts[CurrentId];
 
@@ -271,9 +270,7 @@ void
 FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, u32 Color,
                    texture* Texture, f32 s0, f32 t0, f32 s1, f32 t1)
 {
-    Assert(IsCtxInitialized == true);
-
-    Assert(CurrentId == -1);
+    Assert(CurrentId != -1);
 
     render_context& rctx = RenderContexts[CurrentId];
 
@@ -334,9 +331,7 @@ void
 FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h,
                    texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1)
 {
-     Assert(IsCtxInitialized == true);
-
-     Assert(CurrentId == -1);
+     Assert(CurrentId != -1);
 
      render_context& rctx = RenderContexts[CurrentId];
 

@@ -221,7 +221,7 @@ FontRenderCommit(u32 FontColor, f32 Width, f32 Edge,
     cmd->Color[0] = r / 255.0f;
     cmd->Color[1] = g / 255.0f;
     cmd->Color[2] = b / 255.0f;
-    cmd->Color[a] = a / 255.0f;
+    cmd->Color[3] = a / 255.0f;
 
     DecodeRGBA(BorderColor, &r, &g, &b, &a);
 
@@ -237,8 +237,8 @@ FontRenderCommit(u32 FontColor, f32 Width, f32 Edge,
 void
 FontFlushRenderCommands()
 {
-    // if(FontRenderData.NumCommands == 0)
-        // return;
+    if(FontRenderData.NumCommands == 0)
+        return;
 
     glBindVertexArray(FontRenderData.VertexArray);
     glBindBuffer(GL_ARRAY_BUFFER, FontRenderData.VertexBuffer);
@@ -297,13 +297,49 @@ FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, 
     FillText(s, x, y, Size, Color, Width, Edge, BorderColor, Width + 0.2, Edge + 0.1);
 }
 
+
+void
+FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, u32 BorderColor,
+         f32 BorderWidth, f32 BorderEdge, b32 Centre, u32 LengthConstraint);
+
+
 void
 FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, u32 BorderColor,
          f32 BorderWidth, f32 BorderEdge)
 {
+    FillText(s, x, y, Size, Color, Width, Edge, BorderColor, BorderWidth, BorderEdge, false, 0);
+}
+
+void
+FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, b32 Centre, u32 LengthConstraint)
+{
+    FillText(s, x, y, Size, Color, 0.5f, 0.1f, 0, 0, 0, Centre, LengthConstraint);
+}
+
+void
+FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, u32 BorderColor,
+         f32 BorderWidth, f32 BorderEdge, b32 Centre, u32 LengthConstraint)
+{
     // TODO(rajat): Remove reference and use a pointer instead
     fontinfo& CurrentFont = FontRenderData.CurrentFont;
     f32 Scale = normf(Size, 0, FontRenderData.CurrentFont.Size);
+
+    f32 TotalWidth = 0;
+
+    const char* sr = s;
+    while(*sr && Centre)
+    {
+        if(*sr >= 32 && (int)*sr < 128)
+        {
+            fontface c = CurrentFont.Fonts[*sr];
+
+            TotalWidth += (c.xadvance - CurrentFont.PaddingWidth) * Scale;
+        }
+        ++sr;
+    }
+
+    if(Centre)
+        x += (LengthConstraint - TotalWidth) / 2;
 
     f32 x1 = x;
     f32 y1 = y;
@@ -333,12 +369,12 @@ FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, 
 
             x += (c.xadvance - CurrentFont.PaddingWidth) * Scale;
 
-            if(((x + w) / GameState->ContextAttribs.Width) >= 1.0f && *s ==' ') {
-                f32 y0 = y1;
-                y = y0 + CurrentFont.LineHeight * Scale - CurrentFont.PaddingHeight * Scale;
-                y1 = y;
-                x = x1;
-            }
+            // if(((x + w) / GameState->ContextAttribs.Width) >= 1.0f && *s ==' ') {
+                // f32 y0 = y1;
+                // y = y0 + CurrentFont.LineHeight * Scale - CurrentFont.PaddingHeight * Scale;
+                // y1 = y;
+                // x = x1;
+            // }
         }
         ++s;
     }

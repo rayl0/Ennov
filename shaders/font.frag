@@ -13,7 +13,7 @@ uniform float BorderEdge;
 
 uniform vec3 BorderColor;
 
-// const vec2 offset = vec2(0.006, 0.006);
+const vec2 offset = vec2(0.006, 0.006);
 
 void main()
 {

@@ -50,7 +50,7 @@ struct fontinfo
 // This function may fail
 int GetNextLine(char** Line, size_t* n, char* Stream)
 {
-    static u32 StreamSize = strlen(Stream);
+    static u32 StreamSize = strlen(Stream) + 1;
 
     char* Start = Stream + *n;
     char* Out = *Line;

@@ -15,12 +15,8 @@
 #include "ennov_platform.h"
 #include "ennov.h"
 
-// TODO(rajat): Fix bug, Position of you win text depends upon numactive tiles, >= or ==
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
-#define SMOOTHSTEP(x) ((x) * (x) * (3 - 2 * (x)))
-static bool Toggle = false;
 
 loaded_bitmap*
 LoadPixelsFrom(const char* FileName, game_areana* Areana)
@@ -38,28 +34,14 @@ LoadPixelsFrom(const char* FileName, game_areana* Areana)
 
 // TODO(Rajat): Implement Rand number generator
 // TODO(Rajat): Implement Matrix and transformation methods
-// TODO(Rajat): Don't start a new project after coming back on
-// this after march exams
-// NOTE(Rajat): Don't ever change your editor from spacemacs
-
-enum breakout_batch_id
-{
-    BackgroundBatch,
-    PaddleBatch,
-    BallBatch,
-    TileBatch
-};
 
 struct breakout_game_state
 {
-    b32 HaveLoadState;
-    b32 IsInitialized;
     loaded_bitmap *BackgroundBitmap;
     loaded_bitmap *PaddleBitmap;
     loaded_bitmap *BallBitmap;
     loaded_bitmap *TileBitmap;
     texture Textures[4];
-    game_file *TextFontFile;
     b32 Fired;
     vec2 Direction;
     rect Ball;
@@ -83,30 +65,18 @@ struct breakout_save_data
 
 #define WasPressed(Input, x) Input->Button.x.EndedDown
 
-void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Input, u32 *ConfigBits)
+void GameInit(game_state* State, breakout_game_state* CurrentState, b32 LoadFromSaveData)
 {
-    // NOTE(Rajat): Never do assertions within a loop increment
-    // Assert(Count < 1);
-
-    #if ENNOV_PLATFORM_ANDROID
-    #endif
-
-    breakout_game_state* CurrentState = (breakout_game_state*)Memory->PermanentStorage;
-    if(!Memory->IsInitialized) {
-        InitializeAreana(&State->GameStorage, (char*)Memory->PermanentStorage + sizeof(CurrentState), Memory->PermanentStorageSize - sizeof(CurrentState));
-        InitializeAreana(&State->ScratchStorage, Memory->TransientStorage, Memory->TransientStorageSize);
-        InitializeAreana(&State->AssestStorage, Memory->AssetMemory, Memory->AssetMemorySize);
-
         CurrentState->Paddle = {0.0f, 550.0f, 100.0f, 50.0f};
         CurrentState->Ball = {CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f, 20.0f, 20.0f};
         CurrentState->Direction = {1.0f, 2.0f};
         CurrentState->Fired = false;
         CurrentState->Lives = 3;
         CurrentState->IsPaused = false;
-        CurrentState->IsInitialized = true;
 
         // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
-        if(State->SaveDataSize) {
+        if(LoadFromSaveData) {
+
             breakout_save_data* SaveData = (breakout_save_data*)State->GameSaveData;
 
             CurrentState->Lives = SaveData->NumLives;
@@ -115,9 +85,11 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             for(int i = 0; i < 32; ++i) {
                 CurrentState->Level[i] =  SaveData->LevelData[i];
             }
+
         }
         else
         {
+
             u32 TileMap[32] = {
                 1, 2, 3, 1, 4, 1, 2, 3,
                 5, 3, 5, 1, 3, 5, 4, 1,
@@ -128,20 +100,37 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             for(int i = 0; i < 32; ++i) {
                 CurrentState->Level[i] =  TileMap[i];
             }
-        }
 
+       }
+}
+
+void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Input, u32 *ConfigBits)
+{
+    // NOTE(Rajat): Never do assertions within a loop increment
+    // Assert(Count < 1);
+
+    #if ENNOV_PLATFORM_ANDROID
+    #endif
+
+    breakout_game_state* CurrentState = (breakout_game_state*)Memory->PermanentStorage;
+
+    if(!Memory->IsInitialized) {
+
+        InitializeAreana(&State->GameStorage, (char*)Memory->PermanentStorage + sizeof(CurrentState),
+                         Memory->PermanentStorageSize - sizeof(CurrentState));
+
+        InitializeAreana(&State->ScratchStorage, Memory->TransientStorage, Memory->TransientStorageSize);
+        InitializeAreana(&State->AssestStorage, Memory->AssetMemory, Memory->AssetMemorySize);
         CurrentState->BackgroundBitmap = LoadPixelsFrom("assets/background.jpg", &State->AssestStorage);
         CurrentState->BallBitmap = LoadPixelsFrom("assets/background.jpg", &State->AssestStorage);
         CurrentState->PaddleBitmap = LoadPixelsFrom("assets/paddle.png", &State->AssestStorage);
         CurrentState->TileBitmap = LoadPixelsFrom("assets/container.png", &State->AssestStorage);
 
-        // asset_work_queue WorkQueue;
+        GameInit(State, CurrentState, State->SaveDataSize);
 
         CurrentState->Textures[0] = CreateTexture(CurrentState->BackgroundBitmap);
         CurrentState->Textures[1] = CreateTexture(CurrentState->TileBitmap);
         CurrentState->Textures[2] = CreateTexture(CurrentState->PaddleBitmap);
-
-        CurrentState->TextFontFile = (game_file*)PlatformLoadFile("assets/s.ttf", PushStruct_, &State->AssestStorage);
 
         // TODO(rajat): Load precompiled shaders if possible
         game_file* VertexShaderFile = (game_file*)PlatformLoadFile("shaders/gquad.vert",  PushStruct_, &State->AssestStorage);
@@ -168,6 +157,16 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(0, 0, 0, 1);
+
+    // TODO(rajat): Replace constants with viewport dimensions for different display sizes.
+
+    UI_FillQuad(&UI_Ctx, 0, 0, 800, 600, 0xFF);
+
+    UI_FillQuadRounded(&UI_Ctx, 800 / 2 - 300 / 2, 600 / 2 - 500 / 2, 300, 500, 0x007A7AFF, 0.2 * 100);
+    UI_FillQuadRounded(&UI_Ctx, 800 / 2 - 500 / 2, 600 / 2 - 500 / 2, 500, 100, 0xFF761FFF, 0.2 * 100);
+    FillText("BreakOUT", 800 / 2 - 500 / 2, 600 / 2 - 500 / 2 + 100 / 2 - (94 * normf(72, 0, 58)) / 2, 72, 0xFFFFFFFF, 0.56, 0.06, 0x00FFFFFF, 0.0, 0.1, true, 500);
+
+    FillText("Play", 800 / 2 - 300 / 2, 600 / 2 - 500 / 2 + 100 + 10, 68, 0xFF761FFF, true, 300);
 
     rect* Ball = &CurrentState->Ball;
     rect* Paddle = &CurrentState->Paddle;
@@ -208,11 +207,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             *Direction = { 1.0f, 2.0f};
             --(CurrentState->Lives);
             fprintf(stderr, "One Life deducted!\n");
-            if(CurrentState->Lives == 0)
-            {
-                fprintf(stderr, "You Lose!\n");
-                exit(EXIT_FAILURE);
-            }
         }
         if(RectangleColloide(*Paddle, *Ball))
         {
@@ -242,6 +236,22 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
+    if(CurrentState->Lives == 0)
+    {
+        fprintf(stderr, "You Lose!\n");
+        FillText("You Lose!", 400, 300, 72, 0xFFFFFFFF);
+
+        CurrentState->IsPaused = true;
+        CurrentState->Fired = false;
+
+        if(WasPressed(Input, Start))
+        {
+            GameInit(State, CurrentState, false);
+
+            CurrentState->IsPaused = false;
+        }
+    }
+
     // TODO(rajat): Introduce new buttons in game_input struct for this
     if(WasPressed(Input, Select))
     {
@@ -249,18 +259,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     }
 
     u32 NumActieTiles = 0;
-
-    vec2 StartPosition = {100, 300};
-    vec2 EndPosition = {700, 300};
-
-    static f32 i = 0;
-
-    f32 x = 600 * i;
-
-    i += .01;
-
-    if(i > 1.0)
-        i = 0;
 
     static f32 t = 0;
 
@@ -276,13 +274,9 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     t += (State->dt / 10);
     t = clampf(t, 0, 1.5);
 
-
     u32 Color2 = EncodeRGBA(255 * n, 255 * n, 255 * n, 255 * n);
 
-    // TODO(rajat): Add src clipping to the renderer
     FillTexQuad(00, 00, 800, 600, Color2, &CurrentState->Textures[0]);
-
-    // printf("Alpha: %u\n", S);
 
     u8* Level = CurrentState->Level;
 
@@ -327,12 +321,51 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         }
     }
 
-    CurrentState->IsPaused = Toggle;
+    FillTexQuad(Paddle->Pos.x, Paddle->Pos.y,
+                Paddle->Dimensions.x, Paddle->Dimensions.y,
+                Color2, &CurrentState->Textures[2]);
+    FillTexQuad(Ball->Pos.x, Ball->Pos.y,
+                Ball->Dimensions.x, Ball->Dimensions.y,
+                Color2, &CurrentState->Textures[0]);
+
+    FillQuad(0, 0, 800, 600, Color);
+
+    char Buffer[50];
+    const char* LiveString = "Lives: %i";
+
+    sprintf(Buffer, LiveString, CurrentState->Lives);
+
+    FillText(Buffer, 10.0f, 10.0f,
+             50, 0xFFFFFFFF, 0x007A7AFF);
+
+    if(NumActieTiles == 0)
+    {
+        FillText("You Win!",
+                 800 * 0.3, 600 * 0.3, 32, 0xFFFFFFFF);
+
+        CurrentState->IsPaused = true;
+        CurrentState->Fired = false;
+
+        if(WasPressed(Input, Start))
+        {
+            GameInit(State, CurrentState, false);
+
+            CurrentState->IsPaused = false;
+            CurrentState->Fired = false;
+        }
+    }
+    else
+    {
+        if(CurrentState->IsPaused && CurrentState->Lives != 0)
+        {
+            FillText("Paused!", 0.35 * State->ContextAttribs.Width, .35 * State->ContextAttribs.Height, 64.0f, 0xFFFFFFFF);
+        }
+    }
 
 
     if(Input->Button.Terminate.EndedDown)
     {
-        if(NumActieTiles == 0)
+        if(NumActieTiles == 0 || CurrentState->Lives == 0)
             State->GameSaveData = NULL;
         else
         {
@@ -351,274 +384,9 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->Fired = false;
     }
 
-    FillTexQuad(Paddle->Pos.x, Paddle->Pos.y,
-                Paddle->Dimensions.x, Paddle->Dimensions.y,
-                Color2, &CurrentState->Textures[2]);
-    FillTexQuad(Ball->Pos.x, Ball->Pos.y,
-                Ball->Dimensions.x, Ball->Dimensions.y,
-                Color2, &CurrentState->Textures[0]);
-
-    FillQuad(0, 0, 800, 600, Color);
-
-    static u32 WasHit = 0;
-
-    if(!WasHit)
-    if(RectangleContainsPoint({200, 200, 100, 50}, {Input->Cursor.X, Input->Cursor.Y}))
-        FillQuad(200, 200, 100, 50, 0x000000FF);
-    else
-        FillQuad(200, 200, 100, 50, 0xFFFFFFFF);
-    else
-        FillQuad(200, 200, 100, 50, 0x000000FF);
-
-
-    if(!WasHit)
-    if(RectangleContainsPoint({200, 200, 100, 50}, {Input->Cursor.X, Input->Cursor.Y}))
-        FillText("Button", 200, 200, 32, 0xFFFFFFFF);
-    else
-        FillText("Button", 200, 200, 32, 0x0000000FF);
-    else
-        FillText("Button", 200, 200, 32, 0x0000FFFF);
-
-    f32 ystep = 0;
-    f32 wspacing = 20;
-
-    static f32 winx = 400, winy = 100;
-    f32 winw = 200, winh = 400;
-    static b32 WinToggle = 0;
-    static u32 Active = 0;
-
-    if(RectangleContainsPoint({winx + winw / 2 - 20 / 2, winy, 20, 20}, Input->Cursor.at))
-    {
-        if(Input->Cursor.Drag)
-        {
-            WinToggle = true;
-        }
-    }
-    if(!Input->Cursor.Drag && WinToggle)
-        WinToggle = false;
-
-    if(WinToggle)
-    {
-        winx += clampf(Input->Cursor.X, 0, 800) - (winx + winw / 2 - 20 / 2);
-        winy = clampf(Input->Cursor.Y, 0, 600 - winh);
-    }
-
-    UI_FillQuad(&UI_Ctx, winx, winy, winw, winh, 0x141414FF);
-    UI_FillQuad(&UI_Ctx, winx + winw / 2 - 20 / 2, winy, 20, 20, 0x007A7A7F);
-
-    if(RectangleContainsPoint({200, 200, 100, 50}, {Input->Cursor.X, Input->Cursor.Y}) && Input->Cursor.Hit)
-        WasHit = WasHit ^ 1;
-
-    f32 wslid = winw * 0.85, hslid = 20;
-    f32 xslid = winx + (winw) / 2 - wslid / 2, yslid = winy + wspacing + 10;
-    ystep += winy + hslid + wspacing * 2 + 10;
-
-    static u32 BasicColor = 0x141414FF;
-    static u32 HilightColor = 0x007A7A3F;
-    static u32 Color3 = BasicColor;
-
-    UI_FillQuad(&UI_Ctx, xslid, yslid, wslid, hslid, Color3);
-
-    f32 wper = 0.85 * wslid;
-    f32 hper = lerpf(0.25, 0, hslid);
-    f32 xper = xslid + wslid / 2 - wper / 2;
-    f32 yper = yslid + hslid / 2 - hper / 2;
-
-    UI_FillQuad(&UI_Ctx, xper, yper, wper, hper, 0x007A7A5F);
-
-    f32 wtogg = lerpf(0.05, 0, wper);
-    f32 htogg = lerpf(0.7, 0, hslid);
-    static f32 xtogg = xper;
-    f32 ytogg = yslid + hslid / 2 - htogg / 2;
-
-    static b32 Toggled = false;
-    f32 Color5 = 0x00AFAFFF;
-
-    if(Toggled)
-    {
-        xtogg = clampf(Input->Cursor.X, xper, xper + wper - wtogg);
-        Color5 = 0x00FFFFFF;
-    }
-
-    static f32 xtogglehit = 0;
-
-    if(RectangleContainsPoint({xslid, yslid, wslid, hslid}, {Input->Cursor.X, Input->Cursor.Y}))
-    {
-        if(Toggled)
-        {
-        }
-        else if(Input->Cursor.Drag)
-        {
-            xtogg = clampf(Input->Cursor.X, xper, xper + wper - wtogg);
-        }
-
-        Color3 = HilightColor;
-    }
-    else
-    {
-        Color3 = BasicColor;
-    }
-
-    if(RectangleContainsPoint({xtogg, ytogg, wtogg, htogg}, {Input->Cursor.X, Input->Cursor.Y}))
-    {
-        if(Input->Cursor.Drag)
-        {
-            Toggled = true;
-        }
-    }
-
-    if(!Input->Cursor.Drag && Toggled) {
-        Toggled = false;
-    }
-
-    UI_FillQuad(&UI_Ctx, xtogg, ytogg, wtogg, htogg, Color5);
-    UI_FillQuad(&UI_Ctx, xper, yper, (xtogg - xper), hper, 0x009F9FFF);
-
-    f32 FontSize;
-
-    char Buffer[50];
-
-    FontSize = mapf(xtogg - xper + wtogg, wtogg, wper, 14, 72);
-    sprintf(Buffer, "%f", FontSize);
-
-    UI_FillQuad(&UI_Ctx, xslid + wslid + 10, yslid, 30, hslid, 0x0000004F);
-
-    f32 Color4 = HilightColor + 20;
-    f32 butwhw = winw * 0.85, butwhh = 20;
-    f32 butwhx = winx + winw / 2 - butwhw / 2 - 10 / 2; f32 butwhy = ystep;
-
-    ystep += butwhh + wspacing;
-
-    f32 butw = butwhw * 0.075;
-    f32 butx = butwhx;
-
-    f32 ibutw = butwhw * (1 - 0.075);
-    f32 ibutx = butwhx + butw + 10;
-
-    UI_FillQuad(&UI_Ctx, butx, butwhy, butw, butwhh, Color4);
-    UI_FillQuad(&UI_Ctx, ibutx, butwhy, ibutw, butwhh, Color4);
-
-    if(RectangleContainsPoint({butx, butwhy, butw, butwhh}, Input->Cursor.at))
-    {
-        Color4 = HilightColor;
-
-        if(Input->Cursor.Hit)
-        {
-            if(Input->Cursor.HitMask == LEFT_BUTTON_MASK)
-                Toggle = Toggle ^ true;
-        }
-    }
-
-    else if(WasPressed(Input, A))
-    {
-        Toggle = Toggle ^ true;
-    }
-
-    if(Toggle)
-        UI_FillQuad(&UI_Ctx, butx + (butw / 2) - (0.50 * butw) / 2,
-                 butwhy + (butwhh / 2) - (0.50 * butwhh) / 2,
-                 0.50 * butw, 0.50 * butwhh, 0x00FFFFFF);
-
-    f32 Spacing = 5;
-    f32 bwhole = (winw * 0.85), bh = 50;
-    f32 bw = bwhole / 5 - Spacing;
-    f32 bx = winx + winw / 2 - bwhole / 2, by = ystep;
-    f32 yofffac = 0;
-
-    f32 Color6 = HilightColor;
-
-    for(int i = 0; i < 5; i++)
-    {
-        if(RectangleContainsPoint({bx + i * bw + Spacing * i, by, bw, bh},
-                                  Input->Cursor.at))
-        {
-            yofffac = -10;
-            Color6 = 0x00FFFFFF;
-        }
-        else
-        {
-            yofffac = 0;
-            Color6 = HilightColor;
-        }
-        UI_FillQuad(&UI_Ctx, bx + i * bw + (Spacing) * i,
-                 by + yofffac,
-                 bw, bh, Color6);
-    }
-
-    // RenderCommit();
-
-    FillText(Buffer, xslid + wslid + 10 + 2, yslid, 15, 0xFFFFFFFF);
-
-    const char* LiveString = "Lives: %i";
-
-    // NOTE(rajat): It will be a good idea to replace this text renderer pointing
-    // thing with an actual global backend renderer
-    sprintf(Buffer, LiveString, CurrentState->Lives);
-
-    FillText(Buffer, 10.0f, 10.0f,
-             FontSize, 0xFFFFFFFF, 0x007A7AFF);
-
-    const char* FpsString = "FPS: %u";
-    if((1000/(State->dt * 1.0e2f)) >= 55.0f)
-        sprintf(Buffer, FpsString, 60);
-    else
-    {
-        sprintf(Buffer, FpsString, (u32)(1000/(State->dt * 1.0e2f)));
-    }
-    // TODO(rajat): Might not render stuff like this
-    FillText(Buffer, 700, 570,
-               32.0f, 0xFFFFFFFF);
-
-    if(NumActieTiles == 0)
-    {
-        FillText("You Win!\n Press Terminate to close", 800 * 0.42, 800 * 0.42, 32, 0xFFFFFFFF);
-        CurrentState->IsPaused = true;
-        CurrentState->Fired = false;
-    }
-    else
-    {
-        if(CurrentState->IsPaused)
-        {
-            FillText("Paused!", 0.35 * State->ContextAttribs.Width, .35 * State->ContextAttribs.Height, 64.0f, 0xFFFFFFFF);
-        }
-    }
-
-    UI_FillQuad(&UI_Ctx, 0, 0, 400, 400, 0xFFFAAFFF);
-    UI_FillQuad(&UI_Ctx, 500, 500, 100, 100, 0x00FFFFFF);
-
     RenderCommit();
 
     FlushRenderCommands(rctx);
     UI_FlushCommands(&UI_Ctx);
     FontFlushRenderCommands();
-
-    // UIInit();
-
-    // // User Inputs to the UI system
-    // // Mouse Input and keyboard input
-    // // Sets the current active ui element and hot ui
-
-    ui_io Inputs;
-    Inputs.Pointer.x = Input->Cursor.X;
-    Inputs.Pointer.y = Input->Cursor.Y;
-    Inputs.Hit = Input->Cursor.Hit;
-
-    UIBegin(&Inputs, 800, 600);
-    UIBeginWindow("Hello UI", 200, 200);
-
-    UIButton("hello", 100, 100, 100, 50);
-//    // if(UIButton("Pressmeplease!"))
-//    // {
-//    //     UIBeginWindow("Hello Window 2");
-//    //     UIEnd();
-//    // }
-//
-    UIEndWindow();
-    UIEnd();
-
-    static f32 PrevHeight = State->ContextAttribs.Height;
-
-    // FillText("Hello, my name is Rajat and I am going to battle you the next morning we will meet, so are you ready for the epic battle that the world has never seen!", 0.5, 0.5 * State->ContextAttribs.Height, 44 * State->ContextAttribs.Height / 600.0, 0x00FF00FF, 0.3, 0.29);
-
-    PrevHeight = State->ContextAttribs.Height;
 }

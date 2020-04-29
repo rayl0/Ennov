@@ -1,6 +1,9 @@
 #include "ennov_platform.h"
 #include "ennov_math.h"
 
+#define STB_RECT_PACK_IMPLEMENTATION
+#include "stb_rect_pack.h"
+
 // NOTE(rajat): Platform independence defines for rendering apis
 struct texture;
 
@@ -50,6 +53,8 @@ UI_CreateContext(ui_render_ctx* ctx, const char* VertexShader, const char* Fragm
     u32 ViewProjLocation = glGetUniformLocation(ctx->Shader, "ViewProj");
     glUniformMatrix4fv(ViewProjLocation, 1, GL_FALSE, glm::value_ptr(ViewProj));
 
+    ctx->HaveClipTest = false;
+
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
 }
@@ -57,18 +62,65 @@ UI_CreateContext(ui_render_ctx* ctx, const char* VertexShader, const char* Fragm
 inline static void
 PushCommand(ui_render_ctx* ctx, ui_draw_cmd* cmd)
 {
-    Assert(NumCommands != 1000);
+    Assert(ctx->NumCommands != 1000);
 
     ctx->CommandQueue[ctx->NumCommands] = *cmd;
     ctx->NumCommands++;
 }
 
 extern void
+UI_StartClip(ui_render_ctx* ctx, vec4 ClipRect)
+{
+    ctx->HaveClipTest = true;
+    ctx->ClipRect = ClipRect;
+}
+
+extern void
+UI_EndClip(ui_render_ctx* ctx)
+{
+    ctx->HaveClipTest = false;
+}
+
+
+void
 UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color)
+{
+    UI_FillQuad(ctx, x, y, w, h, Color, 1, NULL, 0, 0);
+}
+
+void
+UI_FillTexQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color, texture* Texture)
+{
+    UI_FillQuad(ctx, x, y, w, h, Color, 1, Texture, 1, 0);
+}
+
+void
+UI_FillQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color,
+                   f32 Radius)
+{
+    UI_FillQuad(ctx, x, y, w, h, Color, 1, NULL, 0, Radius);
+}
+
+void
+UI_FillTexQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, texture* Texture,
+                   f32 Radius)
+{
+    UI_FillQuad(ctx, x, y, w, h, 0xFF, 0, Texture, 1, Radius);
+}
+
+void
+UI_FillTexQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color, texture* Texture,
+                      f32 Radius)
+{
+    UI_FillQuad(ctx, x, y, w, h, Color, 1, Texture, 1, Radius);
+}
+
+void
+UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color, f32 UseColor, texture* Texture, f32 UseTexture, f32 Radius)
 {
     Assert(ctx != NULL);
 
-    ui_draw_cmd cmd;
+    ui_draw_cmd cmd = {};
 
     glm::mat4 Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(x, y, 0));
@@ -90,58 +142,26 @@ UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color)
     // TODO(rajat): Move this to render command
     // glUniform1f(RadiusLoc, 20);
 
-    cmd.UseColor = 1;
-    cmd.UseTexture = 0;
+    cmd.UseColor = UseColor;
+    cmd.UseTexture = UseTexture;
+    cmd.Radius = Radius;
+
+    if(ctx->HaveClipTest)
+    {
+        cmd.HaveClipTest = true;
+        cmd.ClipRect = ctx->ClipRect;
+    }
+    else
+    {
+        cmd.HaveClipTest = false;
+    }
+
+    if(Texture)
+        cmd.TextureId = Texture->Id;
 
     PushCommand(ctx, &cmd);
 }
 
-void
-UI_FillTexQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color, texture* Texture)
-{
-    Assert(ctx != NULL);
-
-    glm::mat4 Model = glm::mat4(1.0f);
-    Model = glm::translate(Model, glm::vec3(x, y, 0));
-    Model = glm::scale(Model, glm::vec3(w, h, 1));
-
-    glBindVertexArray(ctx->VertexArray);
-    glUseProgram(ctx->Shader);
-
-    u32 ModelLoc, ColorLoc;
-    ModelLoc = glGetUniformLocation(ctx->Shader, "Model");
-    glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(Model));
-
-    u8 r, g, b, a;
-    DecodeRGBA(Color, &r, &g, &b, &a);
-
-    ColorLoc = glGetUniformLocation(ctx->Shader, "Color");
-    glUniform4f(ColorLoc, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, ctx->VertexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->IndexBuffer);
-
-    u32 WidthLoc, HeightLoc, RadiusLoc;
-    WidthLoc = glGetUniformLocation(ctx->Shader, "uiWidth");
-    HeightLoc = glGetUniformLocation(ctx->Shader, "uiHeight");
-    RadiusLoc = glGetUniformLocation(ctx->Shader, "radius");
-
-    glUniform1f(WidthLoc, w);
-    glUniform1f(HeightLoc, h);
-    glUniform1f(RadiusLoc, 20);
-
-    u32 UseColorLoc, UseTextureLoc;
-    UseColorLoc = glGetUniformLocation(ctx->Shader, "useColor");
-    UseTextureLoc = glGetUniformLocation(ctx->Shader, "useTexture");
-
-    glUniform1f(UseColorLoc, 0);
-    glUniform1f(UseTextureLoc, 1);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, Texture->Id);
-
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
-}
 
 void
 UI_UpdateViewProj(ui_render_ctx* ctx, f32 ViewportWidth, f32 ViewportHeight)
@@ -164,9 +184,9 @@ UI_FlushCommands(ui_render_ctx* ctx)
     ui_draw_cmd* cmd;
 
     glBindVertexArray(ctx->VertexArray);
-    glUseProgram(ctx->Shader);
     glBindBuffer(GL_ARRAY_BUFFER, ctx->VertexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->IndexBuffer);
+    glUseProgram(ctx->Shader);
 
     u32 ModelLoc, ColorLoc;
     ModelLoc = glGetUniformLocation(ctx->Shader, "Model");
@@ -180,8 +200,6 @@ UI_FlushCommands(ui_render_ctx* ctx)
     u32 UseColorLoc, UseTextureLoc;
     UseColorLoc = glGetUniformLocation(ctx->Shader, "useColor");
     UseTextureLoc = glGetUniformLocation(ctx->Shader, "useTexture");
-
-    glUniform1f(RadiusLoc, 20);
 
     for(int i = 0; i < ctx->NumCommands; ++i)
     {
@@ -198,83 +216,68 @@ UI_FlushCommands(ui_render_ctx* ctx)
         glUniform1f(UseColorLoc, cmd->UseColor);
         glUniform1f(UseTextureLoc, cmd->UseTexture);
 
+        glUniform1f(RadiusLoc, cmd->Radius);
+
+        if(cmd->HaveClipTest) {
+            glEnable(GL_SCISSOR_TEST);
+            glScissor(cmd->ClipRect.x, 600 - cmd->ClipRect.w - cmd->ClipRect.y,
+                      cmd->ClipRect.z,
+                      cmd->ClipRect.w);
+        }
+
+        if(cmd->UseTexture > 0.5)
+        {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, cmd->TextureId);
+        }
+
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+
+        if(cmd->HaveClipTest)
+            glDisable(GL_SCISSOR_TEST);
     }
 
     ctx->NumCommands = 0;
 }
 
-// It will be replaced in the shipping code with dynamic vectors
-#define MAX_UI_ELEMENTS 3000
 #define UI_ID (__LINE__)
 
-struct ui_io
-{
-    struct
-    {
-        s32 x, y;
-    }Pointer;
-    struct
-    {
-        b32 Hit;
-    };
-};
-
-// TODO(rajat): These must be tuned for performance
-#define MAX_UI_TEXQUADS 100
-
-struct ui_context
-{
-    ui_io io;
-    f32 ViewPortW;
-    f32 ViewPortH;
-    u32 ActiveIdx;
-    u32 HotIdx;
-};
-
-ui_context UIContext = {};
+static ui_ctx uctx = {};
+static stbrp_context* context;
 
 void
-UIBegin(ui_io* Inputs, f32 ViewPortW, f32 ViewPortH)
+UI_CreateContext(f32 CanvasX, f32 CanvasY, f32 CanvasW, f32 CanvasH)
 {
-    UIContext.io.Pointer = Inputs->Pointer;
-    UIContext.io.Hit = Inputs->Hit;
-
-    UIContext.ViewPortW = ViewPortW;
-    UIContext.ViewPortH = ViewPortH;
-
-    UIContext.HotIdx = 0;
-
-    // NOTE(rajat): Should it be cleared to zero
-    UIContext.ActiveIdx = 0;
+    uctx.CanvasY = CanvasX;
+    uctx.CanvasY = CanvasY;
+    uctx.CanvasW = CanvasW;
+    uctx.CanvasH = CanvasH;
 }
 
-b32 UIButton(const char* Title, f32 x, f32 y, f32 w, f32 h)
+
+void
+UI_NewFrame(ui_io io)
 {
-    if(RectangleContainsPoint({x, y, w, h}, {UIContext.io.Pointer.x, UIContext.io.Pointer.y}))
+    uctx.io = io;
+    uctx.HotIdx = 0;
+}
+
+b32
+UI_Button(u32 Id, const char* Title)
+{
+}
+
+
+void
+UI_EndFrame()
+{
+    if(uctx.io.Pointer.Hit == 0)
     {
-        FillQuad(x, y, w, h, 0x000000FF);
-        FillText(Title, x, y, 32, 0xFFFFFFFF);
-        return true;
+        uctx.ActiveIdx = 0;
     }
-
-    FillQuad(x, y, w, h, 0xFFFFFFFF);
-    FillText(Title, x, y, 32, 0x000000FF);
-}
-
-void
-UIBeginWindow(const char* Title, u32 w, u32 h)
-{
-}
-
-void
-UIEndWindow()
-{
-}
-
-void
-UIEnd()
-{
-    UIContext.HotIdx = 0;
-    UIContext.ActiveIdx = 0;
+    else
+    {
+        if(uctx.ActiveIdx == 0)
+            uctx.ActiveIdx = -1;
+    }
 }
