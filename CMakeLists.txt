@@ -37,7 +37,7 @@ endif(ENNOV_DEBUG)
 
 # All build options for linux
 if(ENNOV_PLATFORM_LINUX)
-  set(ENNOV_BUILD_OPTIONS ${ENNOV_BUILD_OPTIONS})
+  set(ENNOV_BUILD_OPTIONS ${ENNOV_BUILD_OPTIONS} -pg)
   set(ENNOV_LIB_TYPE STATIC)
 endif()
 

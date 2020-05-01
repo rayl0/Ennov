@@ -10,11 +10,13 @@
 #include "ennov_defs.h"
 #include "ennov_gl.h"
 
+#include "color_table.h"
+
 struct ui_draw_cmd
 {
     f32 UseTexture;
     f32 UseColor;
-    u8 r, g, b, a;
+    f32 r, g, b, a;
     u32 TextureId;
     f32 UI_Width;
     f32 UI_Height;
@@ -70,6 +72,27 @@ UI_FillTexQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color,
 // TODO(rajat): May have support for blurred textures drop shadows
 extern void
 UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color, f32 UseColor, texture* Texture, f32 UseTexture, f32 Radius);
+
+extern void
+UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color,
+            u8 Alpha, f32 UseColor, texture* Texture,
+            f32 UseTexture, f32 Radius);
+
+
+extern void
+UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color, u8 Alpha);
+
+extern void
+UI_FillTexQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color, u8 Alpha, texture* Texture);
+
+extern void
+UI_FillQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color, u8 Alpha, f32 Radius);
+
+extern void
+UI_FillTexQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, texture* Texture, f32 Radius);
+
+extern void
+UI_FillTexQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color, u8 Alpha, texture* Texture, f32 Radius);
 
 extern void
 UI_FlushCommands(ui_render_ctx* ctx);

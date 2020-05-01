@@ -32,6 +32,13 @@ LoadPixelsFrom(const char* FileName, game_areana* Areana)
     return NULL;
 }
 
+enum game_mode
+{
+    PAUSED = 0xF06FFFFF,
+    MENU = 0x005FFFFF,
+    PLAY = 0x007A7AFF
+};
+
 // TODO(Rajat): Implement Rand number generator
 // TODO(Rajat): Implement Matrix and transformation methods
 
@@ -46,9 +53,9 @@ struct breakout_game_state
     vec2 Direction;
     rect Ball;
     rect Paddle;
-    u8 Level[32];
+    u8 Level[16 * 9];
     s32 Lives;
-    b32 IsPaused;
+    u32 Mode;
 };
 
 static ui_render_ctx UI_Ctx;
@@ -57,51 +64,68 @@ static u32 rctx;
 struct breakout_save_data
 {
     u32 NumLives;
-    b32 IsPaused;
-    u8 LevelData[32];
+    u32 Mode;
+    u8 LevelData[16 * 9];
 };
 
 #define PaddleVelocity 25
 
 #define WasPressed(Input, x) Input->Button.x.EndedDown
 
+static f32 AbsSrcWidth;
+static f32 AbsSrcHeight;
+
 void GameInit(game_state* State, breakout_game_state* CurrentState, b32 LoadFromSaveData)
 {
-        CurrentState->Paddle = {0.0f, 550.0f, 100.0f, 50.0f};
-        CurrentState->Ball = {CurrentState->Paddle.Dimensions.x / 2.0f, 530.0f, 20.0f, 20.0f};
-        CurrentState->Direction = {1.0f, 2.0f};
-        CurrentState->Fired = false;
-        CurrentState->Lives = 3;
-        CurrentState->IsPaused = false;
+    f32 PaddleX = 0.0f;
+    f32 PaddleWidth = mapf(250.0f, 0.0f, 1200, 0.0f, AbsSrcWidth);
+    f32 PaddleHeight = mapf(35.0f, 0.0f, 675, 0.0f, AbsSrcHeight);
+    f32 PaddleY = mapf(675 - PaddleHeight, 0.0f, 675.0f, 0.0f, AbsSrcHeight);
 
-        // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
-        if(LoadFromSaveData) {
+    f32 BallWidth = mapf(25.0f, 0.0f, 1200, 0.0f, AbsSrcWidth);
+    f32 BallHeight = mapf(25.0f, 0.0f, 675, 0.0f, AbsSrcHeight);
+    f32 BallX = PaddleX + PaddleWidth / 2.0f;
+    f32 BallY = PaddleY - BallHeight;
 
-            breakout_save_data* SaveData = (breakout_save_data*)State->GameSaveData;
+    CurrentState->Paddle = {PaddleX, PaddleY, PaddleWidth, PaddleHeight};
+    CurrentState->Ball = {BallX, BallY, BallWidth, BallHeight};
+    CurrentState->Direction = {1.0f, 2.0f};
+    CurrentState->Fired = false;
+    CurrentState->Lives = 3;
+    CurrentState->Mode = MENU;
 
-            CurrentState->Lives = SaveData->NumLives;
-            CurrentState->IsPaused = SaveData->IsPaused;
+    // TODO(Rajat): Move OpenGL code to platform layer and introduce command buffer
+    if(LoadFromSaveData) {
 
-            for(int i = 0; i < 32; ++i) {
-                CurrentState->Level[i] =  SaveData->LevelData[i];
-            }
+        breakout_save_data* SaveData = (breakout_save_data*)State->GameSaveData;
 
+        CurrentState->Lives = SaveData->NumLives;
+        CurrentState->Mode = SaveData->Mode;
+
+        if(CurrentState->Mode != MENU)
+            CurrentState->Mode = MENU;
+
+        for(int i = 0; i < 16 * 9; ++i) {
+            CurrentState->Level[i] =  SaveData->LevelData[i];
         }
-        else
-        {
 
-            u32 TileMap[32] = {
-                1, 2, 3, 1, 4, 1, 2, 3,
-                5, 3, 5, 1, 3, 5, 4, 1,
-                4, 1, 3, 5, 2, 1, 2, 5,
-                0, 0, 1, 2, 4, 3, 0, 0
-            };
+    }
+    else
+    {
 
-            for(int i = 0; i < 32; ++i) {
-                CurrentState->Level[i] =  TileMap[i];
-            }
+        u32 TileMap[16 * 9] = {
+            1, 2, 3, 1, 4, 1, 2, 3, 0, 1, 3, 4, 5, 2, 5, 1,
+            5, 3, 5, 1, 3, 5, 4, 1, 0, 1, 3, 4, 5, 2, 0, 1,
+            4, 1, 3, 5, 2, 1, 2, 5, 0, 1, 3, 4, 5, 2, 1, 1,
+            0, 0, 1, 2, 4, 3, 0, 0, 0, 0, 0, 0, 1, 2, 0, 2,
+            0, 1, 3, 4, 5, 2, 0, 1, 2, 3, 4, 5, 0, 1, 1, 0
+        };
 
-       }
+        for(int i = 0; i < 16 * 9; ++i) {
+            CurrentState->Level[i] =  TileMap[i];
+        }
+
+    }
 }
 
 void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Input, u32 *ConfigBits)
@@ -125,6 +149,9 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->BallBitmap = LoadPixelsFrom("assets/background.jpg", &State->AssestStorage);
         CurrentState->PaddleBitmap = LoadPixelsFrom("assets/paddle.png", &State->AssestStorage);
         CurrentState->TileBitmap = LoadPixelsFrom("assets/container.png", &State->AssestStorage);
+
+        AbsSrcWidth = State->ContextAttribs.Width;
+        AbsSrcHeight = State->ContextAttribs.Height;
 
         GameInit(State, CurrentState, State->SaveDataSize);
 
@@ -158,32 +185,133 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(0, 0, 0, 1);
 
+    AbsSrcWidth = State->ContextAttribs.Width;
+    AbsSrcHeight = State->ContextAttribs.Height;
+
     // TODO(rajat): Replace constants with viewport dimensions for different display sizes.
 
-    UI_FillQuad(&UI_Ctx, 0, 0, 800, 600, 0xFF);
+    // UI_FillQuad(&UI_Ctx, 0, 0, State->ContextAttribs.Width, State->ContextAttribs.Height, 0xFF);
 
-    UI_FillQuadRounded(&UI_Ctx, 800 / 2 - 300 / 2, 600 / 2 - 500 / 2, 300, 500, 0x007A7AFF, 0.2 * 100);
-    UI_FillQuadRounded(&UI_Ctx, 800 / 2 - 500 / 2, 600 / 2 - 500 / 2, 500, 100, 0xFF761FFF, 0.2 * 100);
-    FillText("BreakOUT", 800 / 2 - 500 / 2, 600 / 2 - 500 / 2 + 100 / 2 - (94 * normf(72, 0, 58)) / 2, 72, 0xFFFFFFFF, 0.56, 0.06, 0x00FFFFFF, 0.0, 0.1, true, 500);
+    static u32 HotButton = 0;
 
-    FillText("Play", 800 / 2 - 300 / 2, 600 / 2 - 500 / 2 + 100 + 10, 68, 0xFF761FFF, true, 300);
+    vec3 Button1Color = colors.SEA_GREEN;
+    vec3 Button2Color = colors.SEA_GREEN;
+
+    if(HotButton == 1)
+        Button1Color = colors.ORANGE;
+    else if(HotButton == 2)
+        Button2Color = colors.ORANGE;
+
+    HotButton = 0;
+
+    static s32 InteractingButton = 0;
+
+    if(CurrentState->Mode == MENU)
+    {
+        u32 UI_WindowWidth = AbsSrcWidth * 0.8;
+        u32 UI_WindowHeight = AbsSrcHeight * 0.9;
+        u32 UI_WindowX = AbsSrcWidth / 2 - UI_WindowWidth / 2;
+        u32 UI_WindowY = AbsSrcHeight / 2 - UI_WindowHeight / 2;
+
+        UI_FillQuadRounded(&UI_Ctx, UI_WindowX,
+                           UI_WindowY,
+                           UI_WindowWidth, UI_WindowHeight, colors.STEELBLUE, 100, 0.2 * 100);
+
+        u32 UI_TitleBarHeight = UI_WindowHeight * 0.25;
+        UI_FillQuadRounded(&UI_Ctx, UI_WindowX, UI_WindowY, UI_WindowWidth, UI_TitleBarHeight, colors.SEA_GREEN, 255, 0.2 * 100);
+
+        FillText("BreakOUT", UI_WindowX, UI_WindowY + UI_TitleBarHeight / 2 - (94 * normf(72, 0, 58)) / 2,
+                 72, 0xFFFFFFFF, 0.56, 0.06, 0x00FFFFFF, 0.0, 0.1, true, UI_WindowWidth);
+
+        u32 UI_ButtonWidth = mapf(250, 0, 1100, 0, AbsSrcWidth);
+        u32 UI_ButtonHeight = mapf(70, 0, 618, 0, AbsSrcHeight);
+
+        u32 UI_ButtonX = UI_WindowX + UI_WindowWidth / 2 - UI_ButtonWidth / 2;
+        u32 UI_ButtonY = UI_WindowY + UI_TitleBarHeight + 20;
+
+        UI_FillQuadRounded(&UI_Ctx, UI_ButtonX, UI_ButtonY,
+                           UI_ButtonWidth, UI_ButtonHeight, Button1Color, 255, 0.2 * 100);
+
+        FillText("Play", UI_ButtonX, UI_ButtonY, 68, 0xFFFFFFFF, true, UI_ButtonWidth);
+
+        if(RectangleContainsPoint({UI_ButtonX, UI_ButtonY, UI_ButtonWidth, UI_ButtonHeight}, Input->Cursor.at))
+        {
+            if(HotButton == 0 && InteractingButton == 0)
+            {
+                HotButton = 1;
+            }
+
+            if(Input->Cursor.Hit)
+            {
+                if(InteractingButton == 0)
+                    InteractingButton = 1;
+            }
+        }
+
+        u32 UI_ButtonWidth2 = mapf(250, 0, 1100, 0, AbsSrcWidth);
+        u32 UI_ButtonHeight2 = mapf(70, 0, 618, 0, AbsSrcHeight);
+
+        u32 UI_ButtonX2 = UI_WindowX + UI_WindowWidth / 2 - UI_ButtonWidth2 / 2;
+        u32 UI_ButtonY2 = UI_ButtonY + UI_ButtonHeight + 20;
+
+        UI_FillQuadRounded(&UI_Ctx, UI_ButtonX2, UI_ButtonY2,
+                           UI_ButtonWidth2, UI_ButtonHeight2, Button2Color, 255, 0.2 * 100);
+
+        FillText("Exit", UI_ButtonX2, UI_ButtonY2, 68, 0xFFFFFFFF, true, UI_ButtonWidth2);
+
+        if(RectangleContainsPoint({UI_ButtonX2, UI_ButtonY2, UI_ButtonWidth2, UI_ButtonHeight2}, Input->Cursor.at))
+        {
+            if(HotButton == 0 && InteractingButton == 0)
+            {
+                HotButton = 2;
+            }
+
+            if(Input->Cursor.Hit)
+            {
+                if(InteractingButton == 0)
+                    InteractingButton = 2;
+            }
+        }
+    }
+
+    if(Input->Cursor.Hit == 0)
+    {
+        InteractingButton = 0;
+    }
+    else
+    {
+        if(InteractingButton == 0)
+            InteractingButton = -1;
+    }
+
+    if(InteractingButton == 1)
+        CurrentState->Mode = PLAY;
+
+    // InteractingButton = -1;
+
+    UI_UpdateViewProj(&UI_Ctx, State->ContextAttribs.Width, State->ContextAttribs.Height);
+    RenderContextUpdateViewProj(rctx, State->ContextAttribs.Width, State->ContextAttribs.Height);
+    FontUpdateViewProj(State->ContextAttribs.Width, State->ContextAttribs.Height);
+
+    if(!(CurrentState->Mode == MENU))
+    {
 
     rect* Ball = &CurrentState->Ball;
     rect* Paddle = &CurrentState->Paddle;
     vec2* Direction = &CurrentState->Direction;
 
     if(WasPressed(Input, S)) {
-        if(CurrentState->IsPaused)
+        if(CurrentState->Mode == PAUSED)
         {
             fprintf(stderr, "Resuming the game\n");
-            CurrentState->IsPaused = false;
+            CurrentState->Mode = PLAY;
         }
         else {
             fprintf(stderr, "Pausing the game\n");
-            CurrentState->IsPaused = true;
+            CurrentState->Mode = PAUSED;
         }
     }
-    if(!CurrentState->IsPaused) {
+    if(CurrentState->Mode == PLAY) {
         if(WasPressed(Input, Start)) {
             CurrentState->Fired = true;
         }
@@ -191,19 +319,19 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             f32 dv = normf(State->dt, 0, 0.16);
             dv = SMOOTHSTEP(dv);
 
-            Ball->Pos.y -= 3 * Direction->y * dv;
-            Ball->Pos.x += 3 * Direction->x * dv;
+            Ball->Pos.y -= 4 * Direction->y * dv;
+            Ball->Pos.x += 4 * Direction->x * dv;
 
-            Ball->Pos.x = clampf(Ball->Pos.x, 0, 800 - Ball->Dimensions.x);
-            Ball->Pos.y = clampf(Ball->Pos.y, 0, 800 - Ball->Dimensions.y);
+            Ball->Pos.x = clampf(Ball->Pos.x, 0, AbsSrcWidth - Ball->Dimensions.x);
+            Ball->Pos.y = clampf(Ball->Pos.y, 0, AbsSrcHeight + Ball->Dimensions.y);
         }
 
-        if(Ball->Pos.x >= 780.0f) Direction->x = -(Direction->x);
+        if(Ball->Pos.x >= AbsSrcWidth - Ball->Dimensions.x) Direction->x = -(Direction->x);
         if(Ball->Pos.y <= 0.0f) Direction->y = -(Direction->y);
         if(Ball->Pos.x <= 0.0f) Direction->x = -(Direction->x);
-        if(Ball->Pos.y >= 600.0f) {
+        if(Ball->Pos.y >= AbsSrcHeight) {
             CurrentState->Fired = false;
-            Ball->Pos = {100.0f, 550.0f - Ball->Dimensions.y};
+            Ball->Pos = {Paddle->Pos.x + Paddle->Dimensions.x / 2, Paddle->Pos.y - Ball->Dimensions.y};
             *Direction = { 1.0f, 2.0f};
             --(CurrentState->Lives);
             fprintf(stderr, "One Life deducted!\n");
@@ -211,44 +339,44 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         if(RectangleColloide(*Paddle, *Ball))
         {
             if(CurrentState->Fired)
-                Ball->Pos = {Ball->Pos.x, 540.0f - Ball->Dimensions.y};
+                Ball->Pos = {Ball->Pos.x, Paddle->Pos.y - Ball->Dimensions.y};
 
             Direction->x = (Direction->x);
             Direction->y = -(Direction->y);
         }
         if(!CurrentState->Fired) {
             Ball->Pos.x = Paddle->Pos.x + Paddle->Dimensions.x / 2.0f;
-            Ball->Pos.y = 550.0f - Ball->Dimensions.y;
+            Ball->Pos.y = Paddle->Pos.y - Ball->Dimensions.y;
         }
         if(Input->Button.MoveRight.EndedDown)
         {
             f32 dv = normf(State->dt, 0, 0.16);
             dv = SMOOTHSTEP(dv);
             Paddle->Pos.x += dv * PaddleVelocity;
-            Paddle->Pos.x = clampf(Paddle->Pos.x, 0, 800 - Paddle->Dimensions.x);
+            Paddle->Pos.x = clampf(Paddle->Pos.x, 0, AbsSrcWidth - Paddle->Dimensions.x);
         }
         if(Input->Button.MoveLeft.EndedDown)
         {
             f32 dv = normf(State->dt, 0, 0.16);
             dv = SMOOTHSTEP(dv);
             Paddle->Pos.x -= dv * PaddleVelocity;
-            Paddle->Pos.x = clampf(Paddle->Pos.x, 0, 800 - Paddle->Dimensions.x);
+            Paddle->Pos.x = clampf(Paddle->Pos.x, 0, AbsSrcWidth - Paddle->Dimensions.x);
         }
     }
 
     if(CurrentState->Lives == 0)
     {
         fprintf(stderr, "You Lose!\n");
-        FillText("You Lose!", 400, 300, 72, 0xFFFFFFFF);
+        FillText("You Lose!", 0, 300, 72, 0xFFFFFFFF, true, (u32)AbsSrcWidth);
 
-        CurrentState->IsPaused = true;
+        CurrentState->Mode = PAUSED;
         CurrentState->Fired = false;
 
         if(WasPressed(Input, Start))
         {
             GameInit(State, CurrentState, false);
 
-            CurrentState->IsPaused = false;
+            CurrentState->Mode = PLAY;
         }
     }
 
@@ -276,27 +404,30 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
     u32 Color2 = EncodeRGBA(255 * n, 255 * n, 255 * n, 255 * n);
 
-    FillTexQuad(00, 00, 800, 600, Color2, &CurrentState->Textures[0]);
+    FillTexQuad(00, 00, AbsSrcWidth, AbsSrcHeight, Color2, &CurrentState->Textures[0]);
 
     u8* Level = CurrentState->Level;
 
-    for(int i = 0; i < 4; ++i)
+    for(int i = 0; i < 9; ++i)
     {
-        for(int j = 0; j < 8; ++j) {
-            vec2 Pos = {j * 100.0f, i * 50.0f};
-            vec2 Dim = {100.0f, 50.0f};
+        for(int j = 0; j < 16; ++j) {
+            vec2 Pos = {j * (AbsSrcWidth / 16), i * (AbsSrcHeight / 16)};
+            vec2 Dim = {AbsSrcWidth / 16, AbsSrcHeight / 16};
             u32 Color = {};
-            if(Level[i * 8 + j] == 0)
+
+            u32 TileIndex = i * 16 + j;
+
+            if(Level[TileIndex] == 0)
                 continue;
-            else if(Level[i * 8 + j] == 1)
+            else if(Level[TileIndex] == 1)
                 Color = 0x007A7AFF;
-            else if(Level[i * 8 + j] == 2)
+            else if(Level[TileIndex] == 2)
                 Color = 0xFF761FFF;
-            else if(Level[i * 8 + j] == 3)
+            else if(Level[TileIndex] == 3)
                 Color = 0x005FFFFF;
-            else if(Level[i * 8 + j] == 4)
+            else if(Level[TileIndex] == 4)
                 Color = 0xF06FFFFF;
-            else if(Level[i * 8 + j] == 5)
+            else if(Level[TileIndex] == 5)
                 Color = 0x00FFFFFF;
 
             u8 r, g, b, a;
@@ -308,13 +439,13 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             FillTexQuad(Pos.x, Pos.y, Dim.x, Dim.y, Color, &CurrentState->Textures[1]);
             if(RectangleColloide({Pos, Dim}, CurrentState->Ball))
             {
-                fprintf(stderr, "Tile Colloide %i\n", Level[i * 8 + j]);
-                CurrentState->Level[i * 8 + j] = 0;
+                fprintf(stderr, "Tile Colloide %i\n", Level[TileIndex]);
+                CurrentState->Level[TileIndex] = 0;
                 Direction->x = Direction->x;
                 Direction->y = -Direction->y;
             }
 
-            if(Level[i * 8 + j] != 0)
+            if(Level[TileIndex] != 0)
             {
                 NumActieTiles++;
             }
@@ -328,7 +459,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
                 Ball->Dimensions.x, Ball->Dimensions.y,
                 Color2, &CurrentState->Textures[0]);
 
-    FillQuad(0, 0, 800, 600, Color);
+    FillQuad(0, 0, AbsSrcWidth, AbsSrcHeight, Color);
 
     char Buffer[50];
     const char* LiveString = "Lives: %i";
@@ -336,29 +467,29 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     sprintf(Buffer, LiveString, CurrentState->Lives);
 
     FillText(Buffer, 10.0f, 10.0f,
-             50, 0xFFFFFFFF, 0x007A7AFF);
+             50, 0xFFFFFFFF, false, 300);
 
     if(NumActieTiles == 0)
     {
         FillText("You Win!",
-                 800 * 0.3, 600 * 0.3, 32, 0xFFFFFFFF);
+                 0, 300, 64, 0xFFFFFFFF, true, (u32)AbsSrcWidth);
 
-        CurrentState->IsPaused = true;
+        CurrentState->Mode = PAUSED;
         CurrentState->Fired = false;
 
         if(WasPressed(Input, Start))
         {
             GameInit(State, CurrentState, false);
 
-            CurrentState->IsPaused = false;
+            CurrentState->Mode = PLAY;
             CurrentState->Fired = false;
         }
     }
     else
     {
-        if(CurrentState->IsPaused && CurrentState->Lives != 0)
+        if(CurrentState->Mode == PAUSED && CurrentState->Lives != 0)
         {
-            FillText("Paused!", 0.35 * State->ContextAttribs.Width, .35 * State->ContextAttribs.Height, 64.0f, 0xFFFFFFFF);
+            FillText("Paused!", 0, 300, 64.0f, 0xFFFFFFFF, true, (u32)AbsSrcWidth);
         }
     }
 
@@ -372,16 +503,18 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             breakout_save_data* SaveData = (breakout_save_data*)State->GameSaveData;
 
             SaveData->NumLives = CurrentState->Lives;
-            SaveData->IsPaused = CurrentState->IsPaused;
+            SaveData->Mode = CurrentState->Mode;
 
-            for(int i = 0; i < 32; i++)
+            for(int i = 0; i < 16 * 9; i++)
                 SaveData->LevelData[i] = CurrentState->Level[i];
 
             State->SaveDataSize = sizeof(breakout_save_data);
         }
 
-        Ball->Pos = {Paddle->Pos.x + Paddle->Dimensions.x / 2, 550.0f - Ball->Dimensions.y};
+        Ball->Pos = {Paddle->Pos.x + Paddle->Dimensions.x / 2, Paddle->Pos.y - Ball->Dimensions.y};
         CurrentState->Fired = false;
+    }
+
     }
 
     RenderCommit();

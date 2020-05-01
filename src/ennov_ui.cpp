@@ -105,7 +105,7 @@ void
 UI_FillTexQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, texture* Texture,
                    f32 Radius)
 {
-    UI_FillQuad(ctx, x, y, w, h, 0xFF, 0, Texture, 1, Radius);
+    UI_FillQuad(ctx, x, y, w, h, 0xFFFFFFFF, 0, Texture, 1, Radius);
 }
 
 void
@@ -113,6 +113,74 @@ UI_FillTexQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color,
                       f32 Radius)
 {
     UI_FillQuad(ctx, x, y, w, h, Color, 1, Texture, 1, Radius);
+}
+
+void
+UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color,
+            u8 Alpha, f32 UseColor, texture* Texture,
+            f32 UseTexture, f32 Radius)
+{
+    Assert(ctx != NULL);
+
+    ui_draw_cmd cmd = {};
+
+    glm::mat4 Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(x, y, 0));
+    Model = glm::scale(Model, glm::vec3(w, h, 1));
+
+    cmd.Model = Model;
+
+    cmd.r = Color.r;
+    cmd.g = Color.g;
+    cmd.b = Color.b;
+    cmd.a = Alpha / 255.0f;
+
+    cmd.UI_Width = w;
+    cmd.UI_Height = h;
+
+    cmd.UseColor = UseColor;
+    cmd.UseTexture = UseTexture;
+    cmd.Radius = Radius;
+
+    if(ctx->HaveClipTest)
+    {
+        cmd.HaveClipTest = true;
+        cmd.ClipRect = ctx->ClipRect;
+    }
+    else
+    {
+        cmd.HaveClipTest = false;
+    }
+
+    if(Texture)
+        cmd.TextureId = Texture->Id;
+
+    PushCommand(ctx, &cmd);
+}
+
+
+void
+UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color, u8 Alpha)
+{
+    UI_FillQuad(ctx, x, y, w, h, Color, Alpha, 1.0f, NULL, 0.0f, 0.0f);
+}
+
+void
+UI_FillTexQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color, u8 Alpha, texture* Texture)
+{
+    UI_FillQuad(ctx, x, y, w, h, Color, Alpha, 1, Texture, 1, 0);
+}
+
+void
+UI_FillQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color, u8 Alpha, f32 Radius)
+{
+    UI_FillQuad(ctx, x, y, w, h, Color, Alpha, 1, NULL, 0, Radius);
+}
+
+extern void
+UI_FillTexQuadRounded(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, vec3 Color, u8 Alpha, texture* Texture, f32 Radius)
+{
+    UI_FillQuad(ctx, x, y, w, h, Color, Alpha, 1, Texture, 1, Radius);
 }
 
 void
@@ -131,10 +199,10 @@ UI_FillQuad(ui_render_ctx* ctx, f32 x, f32 y, f32 w, f32 h, u32 Color, f32 UseCo
     u8 r, g, b, a;
     DecodeRGBA(Color, &r, &g, &b, &a);
 
-    cmd.r = r;
-    cmd.g = g;
-    cmd.b = b;
-    cmd.a = a;
+    cmd.r = r / 255.0f;
+    cmd.g = g / 255.0f;
+    cmd.b = b / 255.0f;
+    cmd.a = a / 255.0f;
 
     cmd.UI_Width = w;
     cmd.UI_Height = h;
@@ -207,8 +275,8 @@ UI_FlushCommands(ui_render_ctx* ctx)
 
         glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(cmd->Model));
 
-        glUniform4f(ColorLoc, cmd->r / 255.0, cmd->g / 255.0,
-                    cmd->b / 255.0, cmd->a / 255.0);
+        glUniform4f(ColorLoc, cmd->r, cmd->g,
+                    cmd->b, cmd->a);
 
         glUniform1f(WidthLoc, cmd->UI_Width);
         glUniform1f(HeightLoc, cmd->UI_Height);

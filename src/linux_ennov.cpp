@@ -118,6 +118,9 @@ internal_ GLXFBConfig X11GetFrameBufferConfig(x11_state* State)
     return BestFb;
 }
 
+static f32 AspectRatio = 1.777777778;
+static f32 Width = 1100;
+
 internal_ void X11Init(x11_state* State)
 {
     // TODO(Rajat): Error checking and logging
@@ -140,7 +143,7 @@ internal_ void X11Init(x11_state* State)
     WindowAttribs.event_mask = ExposureMask;
 
     State->Window_ = XCreateWindow(State->Display_, RootWindowOfScreen(State->Screen_),
-        50, 50, 800, 600, 5, Visual->depth, InputOutput, Visual->visual,
+        50, 50, Width, Width / AspectRatio, 5, Visual->depth, InputOutput, Visual->visual,
         CWBackPixel | CWColormap | CWBorderPixel | CWEventMask, &WindowAttribs);
 
     glXCreateContextAttribsARBProc glXCreateContextAttribsARB = 0;
@@ -228,9 +231,15 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
     while (XPending(State->Display_) > 0) {
         XNextEvent(State->Display_, &Event);
         switch (Event.type) {
-        case MapNotify:
-            printf("Using OpenGL : %s\n", glGetString(GL_VERSION));
-            break;
+        case MapNotify: {
+            fprintf(stderr, "Using OpenGL : %s\n", glGetString(GL_VERSION));
+
+            local_persist XWindowAttributes WindowAttribs;
+            XGetWindowAttributes(State->Display_, State->Window_, &WindowAttribs);
+            glViewport(0, 0, WindowAttribs.width, WindowAttribs.height);
+            GameState->ContextAttribs.Width = WindowAttribs.width;
+            GameState->ContextAttribs.Height = WindowAttribs.height;
+        }   break;
         case Expose:
             local_persist XWindowAttributes WindowAttribs;
             XGetWindowAttributes(State->Display_, State->Window_, &WindowAttribs);
@@ -443,6 +452,9 @@ main(int argc, char* argv[])
     GameMemory.IsInitialized = false;
 
     game_state GameState = {};
+
+    GameState.ContextAttribs.Width = Width;
+    GameState.ContextAttribs.Height = Width / AspectRatio;
 
     // TODO(Rajat): Not final game saving and loading system
     int SaveFileHandle = open("./ennov.sav", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);

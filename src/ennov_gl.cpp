@@ -23,6 +23,8 @@
 #define glCall(x) x;
 #endif
 
+// TODO(rajat): IMPORTANT: Change render commits to out of memory assertions
+
 // NOTE(rajat): Be careful with names in shaders make sure to have same names
 
 // NOTE(rajat): Trying to be less generic here
@@ -50,13 +52,17 @@ CreateRenderContext(u32* Id, const char* VertexShader, const char* FragmentShade
     glBindBuffer(GL_ARRAY_BUFFER, rctx.VertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * VERTEX_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
 
+    glGenBuffers(1, &rctx.IndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rctx.IndexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * INDEX_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
+
     char TempBuffer[4048];
     sprintf(TempBuffer, FragmentShader, rctx.NumTextureSlots);
 
     rctx.TexQuadShader = CreateShaderProgram(VertexShader, TempBuffer);
     glUseProgram(rctx.TexQuadShader);
 
-    rctx.ViewProj = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
+    rctx.ViewProj = glm::ortho(0.0f, 1200.0f, 675.0f, 0.0f, -1.0f, 1.0f);
 
     GLuint ViewProjLocation = glGetUniformLocation(rctx.TexQuadShader, "ViewProj");
     glUniformMatrix4fv(ViewProjLocation, 1, GL_FALSE, glm::value_ptr(rctx.ViewProj));
@@ -96,14 +102,11 @@ BindRenderContext(u32 Id)
     CurrentId = Id;
 }
 
-static glm::vec4 qd[6] = {
-    {0.0f, 1.0f, 0.0f, 1.0f},
+static glm::vec4 qd[4] = {
     {1.0f, 0.0f, 0.0f, 1.0f},
     {0.0f, 0.0f, 0.0f, 1.0f},
-
     {0.0f, 1.0f, 0.0f, 1.0f},
-    {1.0f, 1.0f, 0.0f, 1.0f},
-    {1.0f, 0.0f, 0.0f, 1.0f}
+    {1.0f, 1.0f, 0.0f, 1.0f}
 };
 
 void
@@ -113,7 +116,7 @@ FillQuad(f32 x, f32 y, f32 w, f32 h, u32 Color)
 
     render_context& rctx = RenderContexts[CurrentId];
 
-    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
+    if(rctx.VertexBufferCurrentPos + 36 >= VERTEX_BUFFER_SIZE)
         RenderCommit();
 
     f32 Index = -1.0f;
@@ -123,30 +126,38 @@ FillQuad(f32 x, f32 y, f32 w, f32 h, u32 Color)
     Model = glm::translate(Model, glm::vec3(x, y, 0));
     Model = glm::scale(Model, glm::vec3(w, h, 0));
 
-    glm::vec4 tvd[6];
+    glm::vec4 tvd[4];
 
     u8 r, g, b, a;
     DecodeRGBA(Color, &r, &g, &b, &a);
 
-    for(int i = 0; i < 6; ++i) {
+    for(int i = 0; i < 4; ++i) {
         tvd[i] = Model * qd[i];
     }
 
-    f32 VertexData[54] = {
+    f32 VertexData[4 * 9] = {
         tvd[0].x, tvd[0].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
         tvd[1].x, tvd[1].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
         tvd[2].x, tvd[2].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[3].x, tvd[3].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[4].x, tvd[4].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[5].x, tvd[5].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
+        tvd[3].x, tvd[3].y, 0, 0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
     };
 
-    for(int i = 0; i < 54; i++)
+    for(int i = 0; i < 36; i++)
     {
         rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
     }
 
-    rctx.VertexBufferCurrentPos += 54;
+    u32 IndexData[6] = {0, 1, 2, 2, 3, 0};
+
+    for(int i = 0; i < 6; ++i)
+    {
+        rctx.IndexBufferData[rctx.IndexBufferCurrentPos + i] = IndexData[i] + rctx.BufferIndex;
+    }
+
+    rctx.IndexBufferCurrentPos += 6;
+    rctx.BufferIndex += 4;
+
+    rctx.VertexBufferCurrentPos += 36;
 }
 
 void
@@ -156,7 +167,7 @@ FillTexQuad(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture)
 
     render_context& rctx = RenderContexts[CurrentId];
 
-    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
+    if(rctx.VertexBufferCurrentPos + 36 >= VERTEX_BUFFER_SIZE)
         RenderCommit();
 
     f32 Index = -1.0f;
@@ -183,87 +194,44 @@ FillTexQuad(f32 x, f32 y, f32 w, f32 h, u32 Color, texture *Texture)
     Model = glm::translate(Model, glm::vec3(x, y, 0));
     Model = glm::scale(Model, glm::vec3(w, h, 0));
 
-    glm::vec4 tvd[6];
+    glm::vec4 tvd[4];
 
     u8 r, g, b, a;
     DecodeRGBA(Color, &r, &g, &b, &a);
 
-    for(int i = 0; i < 6; ++i) {
+    for(int i = 0; i < 4; ++i) {
         tvd[i] = Model * qd[i];
     }
 
-    f32 VertexData[54] = {
+    f32 VertexData[36] = {
         tvd[0].x, tvd[0].y, qd[0].x, qd[0].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
         tvd[1].x, tvd[1].y, qd[1].x, qd[1].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
         tvd[2].x, tvd[2].y, qd[2].x, qd[2].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[3].x, tvd[3].y, qd[3].x, qd[3].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[4].x, tvd[4].y, qd[4].x, qd[4].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[5].x, tvd[5].y, qd[5].x, qd[5].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
+        tvd[3].x, tvd[3].y, qd[3].x, qd[3].y, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
     };
 
-    for(int i = 0; i < 54; i++)
+    for(int i = 0; i < 36; i++)
     {
         rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
     }
 
-    rctx.VertexBufferCurrentPos += 54;
+    u32 IndexData[6] = {0, 1, 2, 2, 3, 0};
+
+    for(int i = 0; i < 6; ++i)
+    {
+        rctx.IndexBufferData[rctx.IndexBufferCurrentPos + i] = IndexData[i] + rctx.BufferIndex;
+    }
+
+    rctx.IndexBufferCurrentPos += 6;
+    rctx.BufferIndex += 4;
+
+    rctx.VertexBufferCurrentPos += 36;
 }
 
 void
 FillTexQuad(f32 x, f32 y, f32 w, f32 h, texture *Texture)
 {
-    Assert(CurrentId != -1);
-
-    render_context& rctx = RenderContexts[CurrentId];
-
-    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
-        RenderCommit();
-
-    f32 Index = -1.0f;
-    if(rctx.NumBindTextureSlots == rctx.NumTextureSlots)
-        RenderCommit();
-
-    for(int i = 0; i < rctx.NumBindTextureSlots; ++i)
-    {
-        if(Texture->Id == rctx.TextureMap[i])
-        {
-            Index = i;
-        }
-    }
-
-    if(Index == -1.0f)
-    {
-        rctx.TextureMap[rctx.NumBindTextureSlots] = Texture->Id;
-        Index = rctx.NumBindTextureSlots;
-        rctx.NumBindTextureSlots++;
-    }
-
-    glm::mat4 Model = glm::mat4(1.0f);
-
-    Model = glm::translate(Model, glm::vec3(x, y, 0));
-    Model = glm::scale(Model, glm::vec3(w, h, 0));
-
-    glm::vec4 tvd[6];
-
-    for(int i = 0; i < 6; ++i) {
-        tvd[i] = Model * qd[i];
-    }
-
-    f32 VertexData[54] = {
-        tvd[0].x, tvd[0].y, qd[0].x, qd[0].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[1].x, tvd[1].y, qd[1].x, qd[1].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[2].x, tvd[2].y, qd[2].x, qd[2].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[3].x, tvd[3].y, qd[3].x, qd[3].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[4].x, tvd[4].y, qd[4].x, qd[4].y, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[5].x, tvd[5].y, qd[5].x, qd[5].y, 1.0f, 1.0f, 1.0f, 1.0f, Index
-    };
-
-    for(int i = 0; i < 54; i++)
-    {
-        rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
-    }
-
-    rctx.VertexBufferCurrentPos += 54;
+    FillTexQuad(x, y, w, h, 0xFFFFFFFF, Texture);
 }
 
 void
@@ -274,7 +242,7 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, u32 Color,
 
     render_context& rctx = RenderContexts[CurrentId];
 
-    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
+    if(rctx.VertexBufferCurrentPos + 36 >= VERTEX_BUFFER_SIZE)
         RenderCommit();
 
     f32 Index = -1.0f;
@@ -301,88 +269,62 @@ FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h, u32 Color,
     Model = glm::translate(Model, glm::vec3(x, y, 0));
     Model = glm::scale(Model, glm::vec3(w, h, 0));
 
-    glm::vec4 tvd[6];
+    glm::vec4 tvd[4];
 
     u8 r, g, b, a;
     DecodeRGBA(Color, &r, &g, &b, &a);
 
-    for(int i = 0; i < 6; ++i) {
+    for(int i = 0; i < 4; ++i) {
         tvd[i] = Model * qd[i];
     }
 
-    f32 VertexData[54] = {
-        tvd[0].x, tvd[0].y, s0, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[1].x, tvd[1].y, s1, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[2].x, tvd[2].y, s0, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[3].x, tvd[3].y, s0, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[4].x, tvd[4].y, s1, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
-        tvd[5].x, tvd[5].y, s1, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
+    f32 VertexData[36] = {
+        tvd[0].x, tvd[0].y, s1, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[1].x, tvd[1].y, s0, t0, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[2].x, tvd[2].y, s0, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index,
+        tvd[3].x, tvd[3].y, s1, t1, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, Index
     };
 
-    for(int i = 0; i < 54; i++)
+    for(int i = 0; i < 36; i++)
     {
         rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
     }
 
-    rctx.VertexBufferCurrentPos += 54;
+    u32 IndexData[6] = {0, 1, 2, 2, 3, 0};
+
+    for(int i = 0; i < 6; ++i)
+    {
+        rctx.IndexBufferData[rctx.IndexBufferCurrentPos + i] = IndexData[i] + rctx.BufferIndex;
+    }
+
+    rctx.IndexBufferCurrentPos += 6;
+    rctx.BufferIndex += 4;
+
+    rctx.VertexBufferCurrentPos += 36;
 }
+
+void
+RenderContextUpdateViewProj(u32 Id, f32 Width, f32 Height)
+{
+    Assert(Id != -1);
+
+    render_context* rctx = &RenderContexts[Id];
+    rctx->ViewProj = glm::ortho(0.0f, Width, Height, 0.0f, -1.0f, 1.0f);
+
+    glUseProgram(rctx->TexQuadShader);
+
+    GLuint ViewProjLocation = glGetUniformLocation(rctx->TexQuadShader, "ViewProj");
+    glUniformMatrix4fv(ViewProjLocation, 1, GL_FALSE, glm::value_ptr(rctx->ViewProj));
+
+    glUseProgram(0);
+}
+
 
 void
 FillTexQuadClipped(f32 x, f32 y, f32 w, f32 h,
                    texture *Texture, f32 s0, f32 t0, f32 s1, f32 t1)
 {
-     Assert(CurrentId != -1);
-
-     render_context& rctx = RenderContexts[CurrentId];
-
-    if(rctx.VertexBufferCurrentPos + 54 >= VERTEX_BUFFER_SIZE)
-        RenderCommit();
-
-    f32 Index = -1.0f;
-    if(rctx.NumBindTextureSlots == rctx.NumTextureSlots)
-        RenderCommit();
-
-    for(int i = 0; i < rctx.NumBindTextureSlots; ++i)
-    {
-        if(Texture->Id == rctx.TextureMap[i])
-        {
-            Index = i;
-        }
-    }
-
-    if(Index == -1.0f)
-    {
-        rctx.TextureMap[rctx.NumBindTextureSlots] = Texture->Id;
-        Index = rctx.NumBindTextureSlots;
-        rctx.NumBindTextureSlots++;
-    }
-
-    glm::mat4 Model = glm::mat4(1.0f);
-
-    Model = glm::translate(Model, glm::vec3(x, y, 0));
-    Model = glm::scale(Model, glm::vec3(w, h, 0));
-
-    glm::vec4 tvd[6];
-
-    for(int i = 0; i < 6; ++i) {
-        tvd[i] = Model * qd[i];
-    }
-
-    f32 VertexData[54] = {
-        tvd[0].x, tvd[0].y, s0, t1, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[1].x, tvd[1].y, s1, t0, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[2].x, tvd[2].y, s0, t0, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[3].x, tvd[3].y, s0, t1, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[4].x, tvd[4].y, s1, t1, 1.0f, 1.0f, 1.0f, 1.0f, Index,
-        tvd[5].x, tvd[5].y, s1, t0, 1.0f, 1.0f, 1.0f, 1.0f, Index
-    };
-
-    for(int i = 0; i < 54; i++)
-    {
-        rctx.VertexBufferData[rctx.VertexBufferCurrentPos + i] = VertexData[i];
-    }
-
-    rctx.VertexBufferCurrentPos += 54;
+    FillTexQuadClipped(x, y, w, h, 0xFFFFFFFF, Texture, s0, t0, s1, t1);
 }
 
 void
@@ -408,20 +350,28 @@ RenderCommit()
 
     render_cmd* cmd = &rctx.RenderCommands[rctx.NumCommands++];
 
-    for(int i = 0; i < rctx.VertexBufferCurrentPos; ++i)
-    {
-        cmd->VertexBufferData[i] = rctx.VertexBufferData[i];
-    }
+    glBindBuffer(GL_ARRAY_BUFFER, rctx.VertexBuffer);
+    glBufferSubData(GL_ARRAY_BUFFER, 0,
+                    sizeof(float) * rctx.VertexBufferCurrentPos,
+                    rctx.VertexBufferData);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rctx.IndexBuffer);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0,
+                    sizeof(u32) * rctx.IndexBufferCurrentPos, rctx.IndexBufferData);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     for(int i = 0; i < rctx.NumBindTextureSlots; ++i)
     {
         cmd->TextureMap[i] = rctx.TextureMap[i];
     }
 
-    cmd->NumVertices = rctx.VertexBufferCurrentPos / DATA_PER_VERTEX_TEXQUAD;
+    cmd->NumVertices = rctx.IndexBufferCurrentPos;
     cmd->NumBindTextureSlots = rctx.NumBindTextureSlots;
 
     rctx.VertexBufferCurrentPos = 0;
+    rctx.IndexBufferCurrentPos = 0;
+    rctx.BufferIndex = 0;
     rctx.NumBindTextureSlots = 0;
 }
 
@@ -437,17 +387,14 @@ void FlushRenderCommands(u32 Id)
     {
         render_cmd* cmd = &rctx.RenderCommands[i];
 
-        glBufferSubData(GL_ARRAY_BUFFER, 0,
-                        sizeof(float) * cmd->NumVertices * DATA_PER_VERTEX_TEXQUAD,
-                        cmd->VertexBufferData);
-
         for(int i = 0; i < cmd->NumBindTextureSlots; ++i)
         {
             glActiveTexture(GL_TEXTURE0 + i);
             glBindTexture(GL_TEXTURE_2D, cmd->TextureMap[i]);
         }
 
-        glDrawArrays(GL_TRIANGLES, 0, cmd->NumVertices);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rctx.IndexBuffer);
+        glDrawElements(GL_TRIANGLES, cmd->NumVertices, GL_UNSIGNED_INT, NULL);
     }
 
     rctx.NumCommands = 0;

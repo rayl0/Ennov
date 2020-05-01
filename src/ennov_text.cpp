@@ -143,6 +143,20 @@ internal_ void
 FontRenderCommit(u32 FontColor, f32 Width, f32 Edge,
                  u32 BorderColor, u32 BorderWidth, u32 BorderEdge);
 
+void
+FontUpdateViewProj(f32 Width, f32 Height)
+{
+    FontRenderData.ViewProj = glm::ortho(0.0f, Width,
+                                         Height, 0.0f, -1.0f, 1.0f);
+
+    glUseProgram(FontRenderData.Shader);
+
+    ViewProjLoc = glGetUniformLocation(FontRenderData.Shader, "ViewProj");
+    glUniformMatrix4fv(ViewProjLoc, 1, GL_FALSE, glm::value_ptr(FontRenderData.ViewProj));
+
+    glUseProgram(0);
+}
+
 
 internal_ void
 FillSingleFontQuadClipped(f32 x, f32 y, f32 w, f32 h,
@@ -267,7 +281,8 @@ FontFlushRenderCommands()
         glUniform4f(FontColorLoc, cmd->Color[0], cmd->Color[1],
                     cmd->Color[2], cmd->Color[3]);
 
-        glUniform3f(BorderColorLoc, cmd->BorderColor[0], cmd->BorderColor[1], cmd->BorderColor[2]);
+        glUniform3f(BorderColorLoc, cmd->BorderColor[0],
+                    cmd->BorderColor[1], cmd->BorderColor[2]);
 
         glBufferSubData(GL_ARRAY_BUFFER, 0,
                         sizeof(f32) * cmd->NumVertices * 4,
@@ -307,7 +322,7 @@ void
 FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, u32 BorderColor,
          f32 BorderWidth, f32 BorderEdge)
 {
-    FillText(s, x, y, Size, Color, Width, Edge, BorderColor, BorderWidth, BorderEdge, false, 0);
+    FillText(s, x, y, Size, Color, Width, Edge, BorderColor, BorderWidth, BorderEdge, false, 300);
 }
 
 void
@@ -369,12 +384,12 @@ FillText(const char* s, f32 x, f32 y, f32 Size, u32 Color, f32 Width, f32 Edge, 
 
             x += (c.xadvance - CurrentFont.PaddingWidth) * Scale;
 
-            // if(((x + w) / GameState->ContextAttribs.Width) >= 1.0f && *s ==' ') {
-                // f32 y0 = y1;
-                // y = y0 + CurrentFont.LineHeight * Scale - CurrentFont.PaddingHeight * Scale;
-                // y1 = y;
-                // x = x1;
-            // }
+            if(((x + w) / LengthConstraint) >= 1.0f && *s ==' ') {
+                f32 y0 = y1;
+                y = y0 + CurrentFont.LineHeight * Scale - CurrentFont.PaddingHeight * Scale;
+                y1 = y;
+                x = x1;
+            }
         }
         ++s;
     }
