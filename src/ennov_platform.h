@@ -158,6 +158,7 @@ typedef struct game_state
     }ContextAttribs;
     void* GameSaveData;
     u32 SaveDataSize;
+    b32 SignalTerminate;
 }game_state;
 
 extern void GameUpdateAndRender(game_memory* Memory, game_state* State, game_input* Input, u32 *ConfigBits);

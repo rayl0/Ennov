@@ -1,3 +1,6 @@
+// ------------ TODO -------------
+// -- Fix ennov_gl clip calls
+
 #include <stdio.h>
 #include <unistd.h>
 #include <memory.h>
@@ -51,7 +54,10 @@ struct breakout_game_state
     texture Textures[4];
     b32 Fired;
     vec2 Direction;
-    rect Ball;
+    struct {
+        rect BallRect;
+        f32 Radius;
+    }Ball;
     rect Paddle;
     u8 Level[16 * 9];
     s32 Lives;
@@ -88,7 +94,8 @@ void GameInit(game_state* State, breakout_game_state* CurrentState, b32 LoadFrom
     f32 BallY = PaddleY - BallHeight;
 
     CurrentState->Paddle = {PaddleX, PaddleY, PaddleWidth, PaddleHeight};
-    CurrentState->Ball = {BallX, BallY, BallWidth, BallHeight};
+    CurrentState->Ball.BallRect = {BallX, BallY, BallWidth, BallHeight};
+    CurrentState->Ball.Radius = BallWidth / 2;
     CurrentState->Direction = {1.0f, 2.0f};
     CurrentState->Fired = false;
     CurrentState->Lives = 3;
@@ -114,11 +121,11 @@ void GameInit(game_state* State, breakout_game_state* CurrentState, b32 LoadFrom
     {
 
         u32 TileMap[16 * 9] = {
-            1, 2, 3, 1, 4, 1, 2, 3, 0, 1, 3, 4, 5, 2, 5, 1,
-            5, 3, 5, 1, 3, 5, 4, 1, 0, 1, 3, 4, 5, 2, 0, 1,
-            4, 1, 3, 5, 2, 1, 2, 5, 0, 1, 3, 4, 5, 2, 1, 1,
-            0, 0, 1, 2, 4, 3, 0, 0, 0, 0, 0, 0, 1, 2, 0, 2,
-            0, 1, 3, 4, 5, 2, 0, 1, 2, 3, 4, 5, 0, 1, 1, 0
+            3, 2, 3, 1, 5, 1, 2, 3, 3, 5, 3, 4, 5, 2, 5, 1,
+            5, 3, 5, 3, 3, 5, 4, 1, 4, 5, 3, 5, 5, 2, 0, 3,
+            4, 1, 3, 5, 2, 1, 2, 5, 1, 2, 3, 4, 5, 5, 3, 3,
+            0, 0, 3, 2, 4, 3, 0, 0, 4, 0, 0, 0, 1, 2, 0, 2,
+            0, 1, 3, 4, 5, 2, 0, 1, 2, 3, 4, 5, 0, 1, 3, 0
         };
 
         for(int i = 0; i < 16 * 9; ++i) {
@@ -148,7 +155,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         CurrentState->BackgroundBitmap = LoadPixelsFrom("assets/background.jpg", &State->AssestStorage);
         CurrentState->BallBitmap = LoadPixelsFrom("assets/background.jpg", &State->AssestStorage);
         CurrentState->PaddleBitmap = LoadPixelsFrom("assets/paddle.png", &State->AssestStorage);
-        CurrentState->TileBitmap = LoadPixelsFrom("assets/container.png", &State->AssestStorage);
+        CurrentState->TileBitmap = LoadPixelsFrom("assets/block-textures.png", &State->AssestStorage);
 
         AbsSrcWidth = State->ContextAttribs.Width;
         AbsSrcHeight = State->ContextAttribs.Height;
@@ -236,14 +243,14 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
         if(RectangleContainsPoint({UI_ButtonX, UI_ButtonY, UI_ButtonWidth, UI_ButtonHeight}, Input->Cursor.at))
         {
-            if(HotButton == 0 && InteractingButton == 0)
+            if(HotButton == 0)
             {
                 HotButton = 1;
             }
 
             if(Input->Cursor.Hit)
             {
-                if(InteractingButton == 0)
+                if(InteractingButton == 0 && HotButton == 1)
                     InteractingButton = 1;
             }
         }
@@ -261,14 +268,14 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
 
         if(RectangleContainsPoint({UI_ButtonX2, UI_ButtonY2, UI_ButtonWidth2, UI_ButtonHeight2}, Input->Cursor.at))
         {
-            if(HotButton == 0 && InteractingButton == 0)
+            if(HotButton == 0)
             {
                 HotButton = 2;
             }
 
             if(Input->Cursor.Hit)
             {
-                if(InteractingButton == 0)
+                if(InteractingButton == 0 && HotButton == 2)
                     InteractingButton = 2;
             }
         }
@@ -287,6 +294,9 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     if(InteractingButton == 1)
         CurrentState->Mode = PLAY;
 
+    if(InteractingButton == 2)
+        State->SignalTerminate = true;
+
     // InteractingButton = -1;
 
     UI_UpdateViewProj(&UI_Ctx, State->ContextAttribs.Width, State->ContextAttribs.Height);
@@ -296,7 +306,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     if(!(CurrentState->Mode == MENU))
     {
 
-    rect* Ball = &CurrentState->Ball;
+    rect* Ball = &CurrentState->Ball.BallRect;
     rect* Paddle = &CurrentState->Paddle;
     vec2* Direction = &CurrentState->Direction;
 
@@ -375,8 +385,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         if(WasPressed(Input, Start))
         {
             GameInit(State, CurrentState, false);
-
-            CurrentState->Mode = PLAY;
         }
     }
 
@@ -420,7 +428,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             if(Level[TileIndex] == 0)
                 continue;
             else if(Level[TileIndex] == 1)
-                Color = 0x007A7AFF;
+                Color = 0xF06FFFFF;
             else if(Level[TileIndex] == 2)
                 Color = 0xFF761FFF;
             else if(Level[TileIndex] == 3)
@@ -436,11 +444,37 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
             a = 255 * n;
             Color = EncodeRGBA(r, g, b, a);
 
-            FillTexQuad(Pos.x, Pos.y, Dim.x, Dim.y, Color, &CurrentState->Textures[1]);
-            if(RectangleColloide({Pos, Dim}, CurrentState->Ball))
+            f32 s0 = 0, t0 = 0, s1 = 0.5f, t1 = 0.5f;
+
+            // if(Level[TileIndex] == 1)
+            // {
+                // s0 = 0.5f;
+                // t0 = 0.5f;
+                // s1 = 1.0f;
+                // t1 = 1.0f;
+            // }
+
+            FillTexQuadClipped(Pos.x, Pos.y, Dim.x, Dim.y, Color, &CurrentState->Textures[1], s0, t0, s1, t1);
+
+            if(RectangleColloide({Pos, Dim}, *Ball))
             {
                 fprintf(stderr, "Tile Colloide %i\n", Level[TileIndex]);
-                CurrentState->Level[TileIndex] = 0;
+
+                vec2 HalfExtents = Dim;
+                vec2 Centre = {Pos.x + HalfExtents.x, Pos.x + HalfExtents.x};
+
+                vec2 BallCentre = {Ball->Pos.x + Ball->Dimensions.x / 2, Ball->Pos.y + Ball->Dimensions.y / 2};
+
+                vec2 DBar = {BallCentre.x - Centre.x, BallCentre.y - Centre.y};
+                vec2 ClosestPoint = {clampf(DBar.x, 0, HalfExtents.x), clampf(DBar.y, 0, HalfExtents.y)};
+
+                vec2 SBar = {ClosestPoint.x - BallCentre.x, ClosestPoint.y - BallCentre.y};
+
+                if(length(SBar) <= CurrentState->Ball.Radius)
+                    fprintf(stderr, "Hello World!");
+
+                Level[TileIndex] = 0;
+
                 Direction->x = Direction->x;
                 Direction->y = -Direction->y;
             }
@@ -467,7 +501,7 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
     sprintf(Buffer, LiveString, CurrentState->Lives);
 
     FillText(Buffer, 10.0f, 10.0f,
-             50, 0xFFFFFFFF, false, 300);
+             50, Color2, false, 300);
 
     if(NumActieTiles == 0)
     {
@@ -481,7 +515,6 @@ void GameUpdateAndRender(game_memory* Memory, game_state *State, game_input *Inp
         {
             GameInit(State, CurrentState, false);
 
-            CurrentState->Mode = PLAY;
             CurrentState->Fired = false;
         }
     }

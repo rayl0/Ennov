@@ -12,6 +12,12 @@
 #include <X11/XKBlib.h>
 #include <X11/Xatom.h>
 #include <X11/keysymdef.h>
+
+#include <alsa/asoundlib.h>
+
+#define DR_WAV_IMPLEMENTATION
+#include "dr_wav.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +53,7 @@ struct x11_state {
     GLXContext Context;
     Colormap WindowColormap;
     Atom AtomWmDeleteWindow;
+    snd_pcm_t *SndPcmDevice;
     bool32 Running;
 };
 
@@ -227,6 +234,12 @@ internal_ void X11ProcessEvents(x11_state* State, game_input* NewInput, game_sta
     NewInput->Button  = {};
     NewInput->Cursor.Hit = false;
     NewInput->Cursor.HitMask = 0;
+
+    if(GameState->SignalTerminate == true)
+    {
+        State->Running = false;
+        NewInput->Button.Terminate.EndedDown = true;
+    }
 
     while (XPending(State->Display_) > 0) {
         XNextEvent(State->Display_, &Event);
@@ -473,6 +486,12 @@ main(int argc, char* argv[])
 
     close(SaveFileHandle);
 
+    drwav wav;
+    if(!drwav_init_file(&wav, "./assets/JumpR.wav", NULL))
+    {
+        exit(0);
+    }
+
     game_input Input[2] = {};
     game_input* OldInput = &Input[0];
     game_input* NewInput = &Input[1];
@@ -497,7 +516,6 @@ main(int argc, char* argv[])
     u32 ConfigBits = 0;
 
     // glEnable(GL_CULL_FACE);
-
     while (State.Running) {
         X11ProcessEvents(&State, NewInput, &GameState);
         GameUpdateAndRender(&GameMemory, &GameState, NewInput, &ConfigBits);

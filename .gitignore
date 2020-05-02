@@ -2,7 +2,7 @@
 /run.sh
 /assets
 /src/glm/doc
-*.py
+copy_assets.py
 *.android
 *.gradle
 *.cxx
