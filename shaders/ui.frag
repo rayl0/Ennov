@@ -20,7 +20,7 @@ uniform float useColor;
 
 uniform sampler2D UI_Texture;
 
-const float cornerSmoothFactor = 0.7;
+const float cornerSmoothFactor = 1.0;
 
 float calcRoundedCorners() {
 	if (radius <= 0.0) {
